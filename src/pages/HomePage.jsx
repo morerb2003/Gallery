@@ -3,7 +3,14 @@ import Hero from '../components/Hero';
 import GalleryGrid from '../components/GalleryGrid';
 import { CATEGORIES } from '../data/photos';
 
-const HomePage = ({ photos, onNavigate, onSelectPhoto }) => {
+const HomePage = ({
+  photos,
+  onNavigate,
+  onSelectPhoto,
+  onEditPhoto,
+  onDeletePhoto,
+  onOpenAddModal,
+}) => {
   const featuredPhotos = photos.filter((p) => p.featured);
 
   return (
@@ -92,16 +99,32 @@ const HomePage = ({ photos, onNavigate, onSelectPhoto }) => {
             </p>
           </div>
 
-          <button
-            onClick={() => onNavigate('gallery')}
-            className="self-start sm:self-auto px-5 py-2.5 rounded-xl glass-card hover:bg-orange-500 hover:text-black text-white text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer flex items-center gap-2"
-          >
-            <span>View All ({photos.length})</span>
-            <span>→</span>
-          </button>
+          <div className="flex items-center gap-3">
+            {onOpenAddModal && (
+              <button
+                onClick={onOpenAddModal}
+                className="px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-black font-bold text-xs uppercase tracking-wider transition shadow cursor-pointer"
+              >
+                + Add Photo
+              </button>
+            )}
+            <button
+              onClick={() => onNavigate('gallery')}
+              className="px-5 py-2.5 rounded-xl glass-card hover:bg-zinc-800 text-white text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer flex items-center gap-2"
+            >
+              <span>View All ({photos.length})</span>
+              <span>→</span>
+            </button>
+          </div>
         </div>
 
-        <GalleryGrid photos={featuredPhotos} onSelectPhoto={onSelectPhoto} />
+        <GalleryGrid
+          photos={featuredPhotos}
+          onSelectPhoto={onSelectPhoto}
+          onEditPhoto={onEditPhoto}
+          onDeletePhoto={onDeletePhoto}
+          onOpenAddModal={onOpenAddModal}
+        />
       </section>
 
       {/* Artist / Story Banner */}
@@ -111,18 +134,24 @@ const HomePage = ({ photos, onNavigate, onSelectPhoto }) => {
 
           <div className="max-w-2xl space-y-6 relative z-10">
             <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-orange-500/20 text-orange-400 border border-orange-500/30">
-              About This Gallery
+              Personal Portfolio Management
             </span>
             <h2 className="text-3xl sm:text-4xl font-black text-white">
               Behind The Viewfinder
             </h2>
             <p className="text-zinc-300 leading-relaxed text-sm sm:text-base">
-              Photography is about preserving the fleeting emotion of a split second — whether it's golden sun rays dancing across the Himalayas, quiet reflections in ancient alleyways, or the vivid lights of metropolitan nights.
+              Add your own real life captures, organize them into personal, travel, nature, or city albums, and edit photo stories anytime with persistent local storage.
             </p>
-            <div className="pt-2">
+            <div className="pt-2 flex flex-wrap items-center gap-3">
+              <button
+                onClick={onOpenAddModal}
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 transition cursor-pointer"
+              >
+                Upload New Photo
+              </button>
               <button
                 onClick={() => onNavigate('gallery')}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 transition cursor-pointer"
+                className="px-6 py-3 rounded-xl glass-card hover:bg-zinc-800 text-zinc-300 font-bold text-xs uppercase tracking-wider transition cursor-pointer border-zinc-700"
               >
                 Browse Complete Archive
               </button>

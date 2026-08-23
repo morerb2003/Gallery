@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 
-const Navbar = ({ activePage, onNavigate }) => {
+const Navbar = ({
+  activePage,
+  onNavigate,
+  totalPhotos,
+  onOpenAddModal,
+  onOpenExportModal,
+}) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -48,19 +54,44 @@ const Navbar = ({ activePage, onNavigate }) => {
           </button>
         </nav>
 
-        {/* Action Button */}
-        <div className="hidden md:flex items-center gap-3">
+        {/* Action Buttons */}
+        <div className="hidden md:flex items-center gap-2.5">
+          {/* Add Photo Button */}
+          <button
+            onClick={onOpenAddModal}
+            className="flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider text-black bg-gradient-to-r from-orange-500 to-amber-400 rounded-full hover:from-orange-400 hover:to-amber-300 shadow-lg shadow-orange-500/20 hover:scale-105 transition-all cursor-pointer"
+          >
+            <span>➕ Add Photo</span>
+          </button>
+
+          {/* Backup / Export Icon Button */}
+          <button
+            onClick={onOpenExportModal}
+            title="Backup / Export Gallery Data"
+            className="w-9 h-9 rounded-full glass-card hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-center border-zinc-700/80 transition cursor-pointer"
+          >
+            💾
+          </button>
+
+          {/* Photos Count Badge */}
           <button
             onClick={() => onNavigate('gallery')}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-orange-400 bg-orange-500/10 border border-orange-500/20 rounded-full hover:bg-orange-500/20 hover:border-orange-500/40 transition-all cursor-pointer"
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold uppercase tracking-wider text-orange-400 bg-orange-500/10 border border-orange-500/20 rounded-full hover:bg-orange-500/20 transition-all cursor-pointer"
           >
-            <span>20 Photos</span>
+            <span>{totalPhotos} Photos</span>
             <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-ping"></span>
           </button>
         </div>
 
         {/* Mobile menu trigger */}
-        <div className="flex md:hidden">
+        <div className="flex md:hidden items-center gap-2">
+          <button
+            onClick={onOpenAddModal}
+            className="px-3 py-1.5 rounded-xl bg-orange-500 text-black font-bold text-xs flex items-center gap-1 shadow"
+          >
+            <span>➕ Add</span>
+          </button>
+
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white focus:outline-none"
@@ -107,8 +138,17 @@ const Navbar = ({ activePage, onNavigate }) => {
                 : 'text-zinc-300 hover:bg-zinc-900'
             }`}
           >
-            <span>🖼️ Explore Gallery</span>
+            <span>🖼️ Explore Gallery ({totalPhotos})</span>
             {activePage === 'gallery' && <span className="text-xs">Active</span>}
+          </button>
+          <button
+            onClick={() => {
+              onOpenExportModal();
+              setMobileMenuOpen(false);
+            }}
+            className="w-full text-left px-4 py-3 rounded-xl text-base font-medium text-zinc-300 hover:bg-zinc-900 flex items-center gap-2"
+          >
+            <span>💾 Backup & Export JSON</span>
           </button>
         </div>
       )}

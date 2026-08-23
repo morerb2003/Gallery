@@ -1,6 +1,13 @@
 import React, { useEffect, useCallback } from 'react';
 
-const Lightbox = ({ photo, photosList, onClose, onNavigate }) => {
+const Lightbox = ({
+  photo,
+  photosList,
+  onClose,
+  onNavigate,
+  onEditPhoto,
+  onDeletePhoto,
+}) => {
   if (!photo) return null;
 
   const currentIndex = photosList.findIndex((p) => p.id === photo.id);
@@ -56,7 +63,7 @@ const Lightbox = ({ photo, photosList, onClose, onNavigate }) => {
         className="relative w-full max-w-6xl max-h-[95vh] h-full flex flex-col lg:flex-row rounded-3xl overflow-hidden glass-card border-zinc-800 bg-zinc-950/90 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Top Control Bar for Mobile */}
+        {/* Top Control Bar for Close */}
         <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
           <button
             onClick={onClose}
@@ -71,7 +78,6 @@ const Lightbox = ({ photo, photosList, onClose, onNavigate }) => {
 
         {/* Left / Center Area: Main Image Stage */}
         <div className="relative flex-1 bg-black/60 flex items-center justify-center p-4 sm:p-8 min-h-[300px] overflow-hidden select-none">
-          
           <img
             key={photo.id}
             src={photo.src}
@@ -114,13 +120,16 @@ const Lightbox = ({ photo, photosList, onClose, onNavigate }) => {
         {/* Right Area: Metadata Sidebar */}
         <div className="w-full lg:w-96 p-6 sm:p-8 bg-zinc-950/95 border-t lg:border-t-0 lg:border-l border-zinc-800 flex flex-col justify-between overflow-y-auto">
           <div className="space-y-6">
-            
             {/* Header Badge */}
             <div className="flex items-center justify-between">
               <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-orange-500/15 text-orange-400 border border-orange-500/30">
                 {photo.category}
               </span>
-              <span className="text-xs text-zinc-500">Press ESC to close</span>
+              {photo.featured && (
+                <span className="text-xs text-amber-400 font-bold flex items-center gap-1">
+                  ★ Featured
+                </span>
+              )}
             </div>
 
             {/* Title & Description */}
@@ -129,7 +138,7 @@ const Lightbox = ({ photo, photosList, onClose, onNavigate }) => {
                 {photo.title}
               </h2>
               <p className="text-sm text-zinc-300 leading-relaxed">
-                {photo.description}
+                {photo.description || 'No description provided.'}
               </p>
             </div>
 
@@ -147,7 +156,7 @@ const Lightbox = ({ photo, photosList, onClose, onNavigate }) => {
                 <span className="text-lg">📷</span>
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-zinc-400 font-semibold">Gear & Lens</p>
-                  <p className="text-xs font-medium text-zinc-200">{photo.camera || "Sony Alpha Series"}</p>
+                  <p className="text-xs font-medium text-zinc-200">{photo.camera || "Custom Camera"}</p>
                 </div>
               </div>
 
@@ -176,21 +185,42 @@ const Lightbox = ({ photo, photosList, onClose, onNavigate }) => {
                 </div>
               </div>
             )}
-
           </div>
 
-          {/* Action Links */}
-          <div className="pt-6 border-t border-zinc-900 flex items-center gap-3">
+          {/* Action Links & Photo Management Buttons */}
+          <div className="pt-6 border-t border-zinc-900 space-y-2.5">
+            <div className="flex items-center gap-2">
+              {/* Edit Photo Button */}
+              {onEditPhoto && (
+                <button
+                  onClick={() => onEditPhoto(photo)}
+                  className="flex-1 py-2.5 rounded-xl glass-card hover:bg-zinc-800 text-orange-400 hover:text-orange-300 font-bold text-xs uppercase tracking-wider text-center border-orange-500/30 transition cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <span>✏️ Edit</span>
+                </button>
+              )}
+
+              {/* Delete Photo Button */}
+              {onDeletePhoto && (
+                <button
+                  onClick={() => onDeletePhoto(photo)}
+                  className="py-2.5 px-4 rounded-xl bg-red-950/40 hover:bg-red-900/60 text-red-400 hover:text-red-300 font-bold text-xs uppercase tracking-wider text-center border border-red-900/50 transition cursor-pointer flex items-center justify-center gap-1.5"
+                  title="Delete this photo"
+                >
+                  <span>🗑️</span>
+                </button>
+              )}
+            </div>
+
             <a
               href={photo.src}
               target="_blank"
               rel="noreferrer"
-              className="flex-1 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs uppercase tracking-wider text-center shadow-lg shadow-orange-500/20 transition-all cursor-pointer"
+              className="block w-full py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs uppercase tracking-wider text-center shadow-lg shadow-orange-500/20 transition-all cursor-pointer"
             >
               Open Original HD
             </a>
           </div>
-
         </div>
       </div>
     </div>

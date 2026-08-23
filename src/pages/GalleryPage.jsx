@@ -8,6 +8,10 @@ const GalleryPage = ({
   selectedCategory,
   onSelectCategory,
   onSelectPhoto,
+  onEditPhoto,
+  onDeletePhoto,
+  onOpenAddModal,
+  onOpenExportModal,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -45,18 +49,34 @@ const GalleryPage = ({
 
   return (
     <div className="min-h-screen py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      
       {/* Page Header */}
       <div className="text-center max-w-3xl mx-auto mb-10 space-y-3">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full glass-card text-orange-400 text-xs font-bold uppercase tracking-widest">
-          <span>Explore All Collections</span>
+          <span>Manage & Browse Albums</span>
         </div>
         <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight">
           Visual <span className="text-gradient-orange">Gallery</span>
         </h1>
         <p className="text-sm sm:text-base text-zinc-400 max-w-xl mx-auto">
-          Filter by theme or search through individual stories, shot locations, and cameras.
+          Filter by album theme, search shot details, or upload new photographs.
         </p>
+
+        {/* Action Buttons Bar */}
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
+          <button
+            onClick={onOpenAddModal}
+            className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 transition cursor-pointer flex items-center gap-2"
+          >
+            <span>➕ Upload Photo</span>
+          </button>
+
+          <button
+            onClick={onOpenExportModal}
+            className="px-5 py-2.5 rounded-2xl glass-card hover:bg-zinc-800 text-zinc-300 hover:text-white font-bold text-xs uppercase tracking-wider border-zinc-700 transition cursor-pointer flex items-center gap-2"
+          >
+            <span>💾 Backup / Export</span>
+          </button>
+        </div>
       </div>
 
       {/* Search Input */}
@@ -81,6 +101,10 @@ const GalleryPage = ({
         photos={filteredPhotos}
         onSelectPhoto={onSelectPhoto}
         onResetFilters={handleResetFilters}
+        onEditPhoto={onEditPhoto}
+        onDeletePhoto={onDeletePhoto}
+        onOpenAddModal={onOpenAddModal}
+        showAddCard={selectedCategory === 'all' && !searchQuery}
       />
     </div>
   );
