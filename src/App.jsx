@@ -7,12 +7,17 @@ import DeleteConfirmModal from './components/DeleteConfirmModal';
 import ExportModal from './components/ExportModal';
 import HomePage from './pages/HomePage';
 import GalleryPage from './pages/GalleryPage';
+import PhotoDetailPage from './pages/PhotoDetailPage';
+import ProfilePage from './pages/ProfilePage';
+import CollectionsPage from './pages/CollectionsPage';
+import DashboardPage from './pages/DashboardPage';
 import { photosData as defaultPhotosData } from './data/photos';
 
 const STORAGE_KEY = 'rohits_gallery_photos_v1';
 const LIKES_KEY = 'rohits_gallery_likes_v1';
 const COLLECTIONS_KEY = 'rohits_gallery_collections_v1';
 const ALBUMS_KEY = 'rohits_gallery_albums_v1';
+const FOLLOWING_KEY = 'rohits_gallery_following_v1';
 
 const DEFAULT_ALBUMS = [
   { id: 'album-1', name: 'Nature & Horizons', description: 'Scenic vistas, lakes, and sunsets.', photoCount: 4 },
@@ -37,7 +42,7 @@ const App = () => {
     return defaultPhotosData;
   });
 
-  // Likes state: map of photoId -> boolean
+  // Likes map: photoId -> boolean
   const [likes, setLikes] = useState(() => {
     try {
       const saved = localStorage.getItem(LIKES_KEY);
@@ -47,7 +52,7 @@ const App = () => {
     }
   });
 
-  // Collections / Saved state: map of photoId -> boolean
+  // Collections map: photoId -> boolean
   const [collections, setCollections] = useState(() => {
     try {
       const saved = localStorage.getItem(COLLECTIONS_KEY);
@@ -57,7 +62,7 @@ const App = () => {
     }
   });
 
-  // Custom User Albums
+  // User albums
   const [albums, setAlbums] = useState(() => {
     try {
       const saved = localStorage.getItem(ALBUMS_KEY);
@@ -67,12 +72,24 @@ const App = () => {
     }
   });
 
-  const [activePage, setActivePage] = useState('home');
+  // Followed creators map: creatorHandle -> boolean
+  const [followingCreators, setFollowingCreators] = useState(() => {
+    try {
+      const saved = localStorage.getItem(FOLLOWING_KEY);
+      return saved ? JSON.parse(saved) : { '@elena_light': true };
+    } catch {
+      return { '@elena_light': true };
+    }
+  });
+
+  // Routing State
+  const [activePage, setActivePage] = useState('home'); // 'home' | 'gallery' | 'collections' | 'dashboard' | 'profile' | 'photo'
+  const [activePhotoId, setActivePhotoId] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Modal States
+  // Modals
+  const [selectedLightboxPhoto, setSelectedLightboxPhoto] = useState(null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingPhoto, setEditingPhoto] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -80,55 +97,78 @@ const App = () => {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  // Auto-sync photos with localStorage
+  // Auto-sync localStorage
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(photos));
     } catch (e) {
-      console.error('Failed to save to localStorage:', e);
+      console.error(e);
     }
   }, [photos]);
 
-  // Auto-sync likes
   useEffect(() => {
     try {
       localStorage.setItem(LIKES_KEY, JSON.stringify(likes));
     } catch (e) {
-      console.error('Failed to save likes:', e);
+      console.error(e);
     }
   }, [likes]);
 
-  // Auto-sync collections
   useEffect(() => {
     try {
       localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(collections));
     } catch (e) {
-      console.error('Failed to save collections:', e);
+      console.error(e);
     }
   }, [collections]);
 
-  // Auto-sync albums
   useEffect(() => {
     try {
       localStorage.setItem(ALBUMS_KEY, JSON.stringify(albums));
     } catch (e) {
-      console.error('Failed to save albums:', e);
+      console.error(e);
     }
   }, [albums]);
 
-  // Sync with URL hash
+  useEffect(() => {
+    try {
+      localStorage.setItem(FOLLOWING_KEY, JSON.stringify(followingCreators));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [followingCreators]);
+
+  // Deep-Linking Hash Router
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.replace('#', '');
-      if (hash.startsWith('gallery')) {
+      const rawHash = window.location.hash.replace('#', '').replace(/^\//, '');
+      if (!rawHash || rawHash === 'home') {
+        setActivePage('home');
+        setActivePhotoId(null);
+      } else if (rawHash.startsWith('photo/')) {
+        const id = rawHash.replace('photo/', '');
+        setActivePage('photo');
+        setActivePhotoId(id);
+      } else if (rawHash.startsWith('gallery')) {
         setActivePage('gallery');
-        const params = new URLSearchParams(hash.split('?')[1] || '');
+        setActivePhotoId(null);
+        const params = new URLSearchParams(rawHash.split('?')[1] || '');
         const cat = params.get('category');
         const search = params.get('search');
         if (cat) setSelectedCategory(cat);
         if (search) setSearchQuery(search);
+      } else if (rawHash.startsWith('collections')) {
+        setActivePage('collections');
+        setActivePhotoId(null);
+      } else if (rawHash.startsWith('dashboard')) {
+        setActivePage('dashboard');
+        setActivePhotoId(null);
+      } else if (rawHash.startsWith('profile')) {
+        setActivePage('profile');
+        setActivePhotoId(null);
       } else {
         setActivePage('home');
+        setActivePhotoId(null);
       }
     };
 
@@ -144,12 +184,9 @@ const App = () => {
 
   const handleNavigate = (page, category = null, search = '') => {
     setActivePage(page);
-    if (category) {
-      setSelectedCategory(category);
-    }
-    if (search !== undefined) {
-      setSearchQuery(search);
-    }
+    if (category) setSelectedCategory(category);
+    if (search !== undefined) setSearchQuery(search);
+
     const params = new URLSearchParams();
     if (category && category !== 'all') params.set('category', category);
     if (search) params.set('search', search);
@@ -163,58 +200,39 @@ const App = () => {
     handleNavigate('gallery', 'all', tag);
   };
 
-  // Inspect photo & increment view count
-  const handleSelectPhoto = (photo) => {
-    if (!photo) {
-      setSelectedPhoto(null);
-      return;
-    }
-    const updated = {
-      ...photo,
-      views: (photo.views || 2400) + 1,
-    };
-    setSelectedPhoto(updated);
-    setPhotos((prev) => prev.map((p) => (p.id === photo.id ? updated : p)));
+  const handleToggleFollow = (creatorHandle) => {
+    setFollowingCreators((prev) => {
+      const next = !prev[creatorHandle];
+      showToast(next ? `✓ Following ${creatorHandle}` : `Unfollowed ${creatorHandle}`);
+      return { ...prev, [creatorHandle]: next };
+    });
   };
 
-  // Like Toggle
   const handleToggleLike = (photoId, e) => {
     if (e && e.stopPropagation) e.stopPropagation();
     setLikes((prev) => {
       const nextState = !prev[photoId];
-      if (nextState) {
-        showToast('❤️ Added to Liked Photos');
-      } else {
-        showToast('🤍 Removed from Liked Photos');
-      }
+      showToast(nextState ? '❤️ Added to Liked Photos' : '🤍 Removed from Liked Photos');
       return { ...prev, [photoId]: nextState };
     });
   };
 
-  // Collection Toggle
   const handleToggleCollection = (photoId, e) => {
     if (e && e.stopPropagation) e.stopPropagation();
     setCollections((prev) => {
       const nextState = !prev[photoId];
-      if (nextState) {
-        showToast('🔖 Saved to Private Collection');
-      } else {
-        showToast('Removed from Collection');
-      }
+      showToast(nextState ? '🔖 Saved to Private Collection' : 'Removed from Collection');
       return { ...prev, [photoId]: nextState };
     });
   };
 
-  // Download Trigger & increment download count
   const handleDownloadPhoto = async (photo, e) => {
     if (e && e.stopPropagation) e.stopPropagation();
     try {
       showToast(`⏳ Preparing download for "${photo.title}"...`);
-      // Increment downloads counter
       setPhotos((prev) =>
         prev.map((p) => (p.id === photo.id ? { ...p, downloads: (p.downloads || 420) + 1 } : p))
       );
-
       const response = await fetch(photo.src, { mode: 'cors' });
       if (!response.ok) throw new Error('Fetch failed');
       const blob = await response.blob();
@@ -226,7 +244,7 @@ const App = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      showToast(`✓ Download started: ${photo.title}`);
+      showToast(`✓ Download completed: ${photo.title}`);
     } catch {
       const link = document.createElement('a');
       link.href = photo.src;
@@ -236,11 +254,10 @@ const App = () => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      showToast(`✓ Opened image in high-res: ${photo.title}`);
+      showToast(`✓ Opened image in HD: ${photo.title}`);
     }
   };
 
-  // Album Management Handlers
   const handleCreateAlbum = (newAlbum, photoIds = []) => {
     setAlbums((prev) => [newAlbum, ...prev]);
     if (photoIds.length > 0) {
@@ -269,26 +286,14 @@ const App = () => {
     showToast(`🗑️ Removed ${photoIds.length} photos.`);
   };
 
-  // Photo CRUD Handlers
-  const handleOpenAddModal = () => {
-    setEditingPhoto(null);
-    setIsFormModalOpen(true);
-  };
-
-  const handleOpenEditModal = (photo) => {
-    setEditingPhoto(photo);
-    setIsFormModalOpen(true);
+  const handleBatchSavePhotos = (newPhotos = []) => {
+    setPhotos((prev) => [...newPhotos, ...prev]);
   };
 
   const handleSavePhoto = (photoData) => {
     if (editingPhoto) {
-      setPhotos((prev) =>
-        prev.map((p) => (p.id === photoData.id ? photoData : p))
-      );
-      if (selectedPhoto && selectedPhoto.id === photoData.id) {
-        setSelectedPhoto(photoData);
-      }
-      showToast(`✓ Updated "${photoData.title}" successfully!`);
+      setPhotos((prev) => prev.map((p) => (p.id === photoData.id ? photoData : p)));
+      showToast(`✓ Updated "${photoData.title}"!`);
     } else {
       setPhotos((prev) => [photoData, ...prev]);
       showToast(`✓ Added "${photoData.title}" to gallery!`);
@@ -297,16 +302,8 @@ const App = () => {
     setEditingPhoto(null);
   };
 
-  const handleOpenDeleteModal = (photo) => {
-    setPhotoToDelete(photo);
-    setIsDeleteModalOpen(true);
-  };
-
   const handleConfirmDelete = (photoId) => {
     setPhotos((prev) => prev.filter((p) => p.id !== photoId));
-    if (selectedPhoto && selectedPhoto.id === photoId) {
-      setSelectedPhoto(null);
-    }
     showToast('🗑️ Photo deleted.');
     setIsDeleteModalOpen(false);
     setPhotoToDelete(null);
@@ -321,8 +318,7 @@ const App = () => {
     } catch (e) {
       console.error(e);
     }
-    if (selectedPhoto) setSelectedPhoto(null);
-    showToast('🔄 Restored default preset gallery!');
+    showToast('🔄 Restored default preset platform!');
   };
 
   return (
@@ -339,28 +335,44 @@ const App = () => {
         activePage={activePage}
         onNavigate={handleNavigate}
         totalPhotos={photos.length}
-        onOpenAddModal={handleOpenAddModal}
+        onOpenAddModal={() => {
+          setEditingPhoto(null);
+          setIsFormModalOpen(true);
+        }}
         onOpenExportModal={() => setIsExportModalOpen(true)}
       />
 
-      {/* Main Page Content */}
+      {/* Main Multi-Page Content Switching */}
       <main className="flex-1">
-        {activePage === 'home' ? (
+        {activePage === 'home' && (
           <HomePage
             photos={photos}
             likes={likes}
             collections={collections}
+            followingCreators={followingCreators}
             onToggleLike={handleToggleLike}
             onToggleCollection={handleToggleCollection}
+            onToggleFollow={handleToggleFollow}
             onDownloadPhoto={handleDownloadPhoto}
             onNavigate={handleNavigate}
             onTagClick={handleTagClick}
-            onSelectPhoto={handleSelectPhoto}
-            onEditPhoto={handleOpenEditModal}
-            onDeletePhoto={handleOpenDeleteModal}
-            onOpenAddModal={handleOpenAddModal}
+            onSelectPhoto={(p) => (window.location.hash = `photo/${p.id}`)}
+            onEditPhoto={(p) => {
+              setEditingPhoto(p);
+              setIsFormModalOpen(true);
+            }}
+            onDeletePhoto={(p) => {
+              setPhotoToDelete(p);
+              setIsDeleteModalOpen(true);
+            }}
+            onOpenAddModal={() => {
+              setEditingPhoto(null);
+              setIsFormModalOpen(true);
+            }}
           />
-        ) : (
+        )}
+
+        {activePage === 'gallery' && (
           <GalleryPage
             photos={photos}
             likes={likes}
@@ -376,30 +388,97 @@ const App = () => {
             onSelectCategory={setSelectedCategory}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            onSelectPhoto={handleSelectPhoto}
-            onEditPhoto={handleOpenEditModal}
-            onDeletePhoto={handleOpenDeleteModal}
-            onOpenAddModal={handleOpenAddModal}
+            onSelectPhoto={(p) => (window.location.hash = `photo/${p.id}`)}
+            onEditPhoto={(p) => {
+              setEditingPhoto(p);
+              setIsFormModalOpen(true);
+            }}
+            onDeletePhoto={(p) => {
+              setPhotoToDelete(p);
+              setIsDeleteModalOpen(true);
+            }}
+            onOpenAddModal={() => {
+              setEditingPhoto(null);
+              setIsFormModalOpen(true);
+            }}
             onOpenExportModal={() => setIsExportModalOpen(true)}
+            onShowToast={showToast}
+          />
+        )}
+
+        {activePage === 'photo' && (
+          <PhotoDetailPage
+            photoId={activePhotoId}
+            photos={photos}
+            likes={likes}
+            collections={collections}
+            followingCreators={followingCreators}
+            onToggleLike={handleToggleLike}
+            onToggleCollection={handleToggleCollection}
+            onToggleFollow={handleToggleFollow}
+            onDownloadPhoto={handleDownloadPhoto}
+            onNavigate={handleNavigate}
+            onSelectPhoto={(p) => (window.location.hash = `photo/${p.id}`)}
+            onShowToast={showToast}
+          />
+        )}
+
+        {activePage === 'profile' && (
+          <ProfilePage
+            photos={photos}
+            likes={likes}
+            collections={collections}
+            albums={albums}
+            onToggleLike={handleToggleLike}
+            onToggleCollection={handleToggleCollection}
+            onDownloadPhoto={handleDownloadPhoto}
+            onSelectPhoto={(p) => (window.location.hash = `photo/${p.id}`)}
+            onOpenAddModal={() => {
+              setEditingPhoto(null);
+              setIsFormModalOpen(true);
+            }}
+            onNavigate={handleNavigate}
+          />
+        )}
+
+        {activePage === 'collections' && (
+          <CollectionsPage
+            albums={albums}
+            photos={photos}
+            likes={likes}
+            collections={collections}
+            onCreateAlbum={handleCreateAlbum}
+            onAssignToAlbum={handleAssignToAlbum}
+            onToggleLike={handleToggleLike}
+            onToggleCollection={handleToggleCollection}
+            onDownloadPhoto={handleDownloadPhoto}
+            onSelectPhoto={(p) => (window.location.hash = `photo/${p.id}`)}
+            onNavigate={handleNavigate}
+          />
+        )}
+
+        {activePage === 'dashboard' && (
+          <DashboardPage
+            photos={photos}
+            onBatchSavePhotos={handleBatchSavePhotos}
+            onNavigate={handleNavigate}
             onShowToast={showToast}
           />
         )}
       </main>
 
-      {/* Fullscreen Lightbox Modal */}
-      {selectedPhoto && (
+      {/* Fullscreen Lightbox Modal (optional quick view) */}
+      {selectedLightboxPhoto && (
         <Lightbox
-          photo={selectedPhoto}
+          photo={selectedLightboxPhoto}
           photosList={photos}
-          isLiked={!!likes[selectedPhoto.id]}
-          isCollected={!!collections[selectedPhoto.id]}
-          onToggleLike={(e) => handleToggleLike(selectedPhoto.id, e)}
-          onToggleCollection={(e) => handleToggleCollection(selectedPhoto.id, e)}
-          onDownloadPhoto={(e) => handleDownloadPhoto(selectedPhoto, e)}
-          onClose={() => setSelectedPhoto(null)}
-          onNavigate={handleSelectPhoto}
-          onEditPhoto={handleOpenEditModal}
-          onDeletePhoto={handleOpenDeleteModal}
+          isLiked={!!likes[selectedLightboxPhoto.id]}
+          isCollected={!!collections[selectedLightboxPhoto.id]}
+          onToggleLike={(e) => handleToggleLike(selectedLightboxPhoto.id, e)}
+          onToggleCollection={(e) => handleToggleCollection(selectedLightboxPhoto.id, e)}
+          onDownloadPhoto={(e) => handleDownloadPhoto(selectedLightboxPhoto, e)}
+          onClose={() => setSelectedLightboxPhoto(null)}
+          onNavigate={setSelectedLightboxPhoto}
           onShowToast={showToast}
         />
       )}

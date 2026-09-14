@@ -9,6 +9,13 @@ const Navbar = ({
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const navLinks = [
+    { id: 'home', label: 'Discover' },
+    { id: 'gallery', label: 'Explore' },
+    { id: 'collections', label: 'Collections' },
+    { id: 'dashboard', label: 'Contributor Hub' },
+  ];
+
   return (
     <header className="sticky top-0 z-40 w-full glass-nav">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
@@ -26,45 +33,36 @@ const Navbar = ({
             <span className="text-xl font-extrabold tracking-tight text-white group-hover:text-orange-400 transition-colors">
               Rohit's <span className="text-gradient-orange">Gallery</span>
             </span>
-            <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-medium">Visual Storyteller</p>
+            <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-medium">Visual Media Platform</p>
           </div>
         </button>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-2 p-1.5 rounded-full bg-zinc-900/90 border border-zinc-800/80 backdrop-blur-md">
-          <button
-            onClick={() => onNavigate('home')}
-            className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 cursor-pointer ${
-              activePage === 'home'
-                ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/25'
-                : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60'
-            }`}
-          >
-            Home
-          </button>
-          <button
-            onClick={() => onNavigate('gallery')}
-            className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 cursor-pointer ${
-              activePage === 'gallery'
-                ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/25'
-                : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60'
-            }`}
-          >
-            Explore Gallery
-          </button>
+        {/* Desktop Navigation Links */}
+        <nav className="hidden lg:flex items-center gap-1.5 p-1.5 rounded-full bg-zinc-900/90 border border-zinc-800/80 backdrop-blur-md">
+          {navLinks.map((link) => (
+            <button
+              key={link.id}
+              onClick={() => onNavigate(link.id)}
+              className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                activePage === link.id
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/25'
+                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60'
+              }`}
+            >
+              {link.label}
+            </button>
+          ))}
         </nav>
 
-        {/* Action Buttons */}
+        {/* Action Controls & User Profile Avatar */}
         <div className="hidden md:flex items-center gap-2.5">
-          {/* Add Photo Button */}
           <button
             onClick={onOpenAddModal}
             className="flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider text-black bg-gradient-to-r from-orange-500 to-amber-400 rounded-full hover:from-orange-400 hover:to-amber-300 shadow-lg shadow-orange-500/20 hover:scale-105 transition-all cursor-pointer"
           >
-            <span>➕ Add Photo</span>
+            <span>➕ Upload</span>
           </button>
 
-          {/* Backup / Export Icon Button */}
           <button
             onClick={onOpenExportModal}
             title="Backup / Export Gallery Data"
@@ -73,23 +71,44 @@ const Navbar = ({
             💾
           </button>
 
-          {/* Photos Count Badge */}
+          {/* Profile Avatar Button */}
           <button
-            onClick={() => onNavigate('gallery')}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold uppercase tracking-wider text-orange-400 bg-orange-500/10 border border-orange-500/20 rounded-full hover:bg-orange-500/20 transition-all cursor-pointer"
+            onClick={() => onNavigate('profile')}
+            title="My Profile & Portfolio"
+            className={`w-10 h-10 rounded-full p-[1.5px] transition-transform hover:scale-105 cursor-pointer ${
+              activePage === 'profile'
+                ? 'bg-gradient-to-r from-orange-500 to-amber-500 ring-2 ring-orange-500/50'
+                : 'bg-zinc-800 hover:bg-zinc-700'
+            }`}
           >
-            <span>{totalPhotos} Photos</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-ping"></span>
+            <div className="w-full h-full rounded-full overflow-hidden bg-zinc-950">
+              <img
+                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80"
+                alt="Profile"
+                className="w-full h-full object-cover"
+              />
+            </div>
           </button>
         </div>
 
         {/* Mobile menu trigger */}
-        <div className="flex md:hidden items-center gap-2">
+        <div className="flex lg:hidden items-center gap-2">
           <button
             onClick={onOpenAddModal}
             className="px-3 py-1.5 rounded-xl bg-orange-500 text-black font-bold text-xs flex items-center gap-1 shadow"
           >
-            <span>➕ Add</span>
+            <span>➕ Upload</span>
+          </button>
+
+          <button
+            onClick={() => onNavigate('profile')}
+            className="w-8 h-8 rounded-full overflow-hidden border border-orange-500/40"
+          >
+            <img
+              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80"
+              alt="Profile"
+              className="w-full h-full object-cover"
+            />
           </button>
 
           <button
@@ -97,58 +116,39 @@ const Navbar = ({
             className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white focus:outline-none"
             aria-label="Toggle Navigation"
           >
-            {mobileMenuOpen ? (
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            )}
+            {mobileMenuOpen ? '✕' : '☰'}
           </button>
         </div>
       </div>
 
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-xl px-4 pt-3 pb-6 space-y-2 animate-modal-enter">
+        <div className="lg:hidden border-b border-zinc-800 bg-zinc-950/98 backdrop-blur-xl px-4 pt-3 pb-6 space-y-2 animate-modal-enter">
+          {navLinks.map((link) => (
+            <button
+              key={link.id}
+              onClick={() => {
+                onNavigate(link.id);
+                setMobileMenuOpen(false);
+              }}
+              className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-between ${
+                activePage === link.id
+                  ? 'bg-gradient-to-r from-orange-500/20 to-amber-500/20 text-orange-400 border border-orange-500/30'
+                  : 'text-zinc-300 hover:bg-zinc-900'
+              }`}
+            >
+              <span>{link.label}</span>
+              {activePage === link.id && <span className="text-xs">Active</span>}
+            </button>
+          ))}
           <button
             onClick={() => {
-              onNavigate('home');
+              onNavigate('profile');
               setMobileMenuOpen(false);
             }}
-            className={`w-full text-left px-4 py-3 rounded-xl text-base font-medium flex items-center justify-between ${
-              activePage === 'home'
-                ? 'bg-gradient-to-r from-orange-500/20 to-amber-500/20 text-orange-400 border border-orange-500/30'
-                : 'text-zinc-300 hover:bg-zinc-900'
-            }`}
+            className="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-zinc-300 hover:bg-zinc-900 flex items-center justify-between"
           >
-            <span>🏠 Home</span>
-            {activePage === 'home' && <span className="text-xs">Active</span>}
-          </button>
-          <button
-            onClick={() => {
-              onNavigate('gallery');
-              setMobileMenuOpen(false);
-            }}
-            className={`w-full text-left px-4 py-3 rounded-xl text-base font-medium flex items-center justify-between ${
-              activePage === 'gallery'
-                ? 'bg-gradient-to-r from-orange-500/20 to-amber-500/20 text-orange-400 border border-orange-500/30'
-                : 'text-zinc-300 hover:bg-zinc-900'
-            }`}
-          >
-            <span>🖼️ Explore Gallery ({totalPhotos})</span>
-            {activePage === 'gallery' && <span className="text-xs">Active</span>}
-          </button>
-          <button
-            onClick={() => {
-              onOpenExportModal();
-              setMobileMenuOpen(false);
-            }}
-            className="w-full text-left px-4 py-3 rounded-xl text-base font-medium text-zinc-300 hover:bg-zinc-900 flex items-center gap-2"
-          >
-            <span>💾 Backup & Export JSON</span>
+            <span>👤 My Profile & Portfolio</span>
           </button>
         </div>
       )}
