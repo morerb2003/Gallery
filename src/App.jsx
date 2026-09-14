@@ -12,6 +12,13 @@ import { photosData as defaultPhotosData } from './data/photos';
 const STORAGE_KEY = 'rohits_gallery_photos_v1';
 const LIKES_KEY = 'rohits_gallery_likes_v1';
 const COLLECTIONS_KEY = 'rohits_gallery_collections_v1';
+const ALBUMS_KEY = 'rohits_gallery_albums_v1';
+
+const DEFAULT_ALBUMS = [
+  { id: 'album-1', name: 'Nature & Horizons', description: 'Scenic vistas, lakes, and sunsets.', photoCount: 4 },
+  { id: 'album-2', name: 'Urban Architecture', description: 'Modern geometry, neon, and city lines.', photoCount: 3 },
+  { id: 'album-3', name: 'Portraits & Stories', description: 'Lifestyle, coffee, and acoustic sessions.', photoCount: 3 },
+];
 
 const App = () => {
   // Load photos from localStorage or fallback to default dataset
@@ -47,6 +54,16 @@ const App = () => {
       return saved ? JSON.parse(saved) : {};
     } catch {
       return {};
+    }
+  });
+
+  // Custom User Albums
+  const [albums, setAlbums] = useState(() => {
+    try {
+      const saved = localStorage.getItem(ALBUMS_KEY);
+      return saved ? JSON.parse(saved) : DEFAULT_ALBUMS;
+    } catch {
+      return DEFAULT_ALBUMS;
     }
   });
 
@@ -89,6 +106,15 @@ const App = () => {
       console.error('Failed to save collections:', e);
     }
   }, [collections]);
+
+  // Auto-sync albums
+  useEffect(() => {
+    try {
+      localStorage.setItem(ALBUMS_KEY, JSON.stringify(albums));
+    } catch (e) {
+      console.error('Failed to save albums:', e);
+    }
+  }, [albums]);
 
   // Sync with URL hash
   useEffect(() => {
@@ -137,6 +163,20 @@ const App = () => {
     handleNavigate('gallery', 'all', tag);
   };
 
+  // Inspect photo & increment view count
+  const handleSelectPhoto = (photo) => {
+    if (!photo) {
+      setSelectedPhoto(null);
+      return;
+    }
+    const updated = {
+      ...photo,
+      views: (photo.views || 2400) + 1,
+    };
+    setSelectedPhoto(updated);
+    setPhotos((prev) => prev.map((p) => (p.id === photo.id ? updated : p)));
+  };
+
   // Like Toggle
   const handleToggleLike = (photoId, e) => {
     if (e && e.stopPropagation) e.stopPropagation();
@@ -165,11 +205,16 @@ const App = () => {
     });
   };
 
-  // Download Trigger
+  // Download Trigger & increment download count
   const handleDownloadPhoto = async (photo, e) => {
     if (e && e.stopPropagation) e.stopPropagation();
     try {
       showToast(`⏳ Preparing download for "${photo.title}"...`);
+      // Increment downloads counter
+      setPhotos((prev) =>
+        prev.map((p) => (p.id === photo.id ? { ...p, downloads: (p.downloads || 420) + 1 } : p))
+      );
+
       const response = await fetch(photo.src, { mode: 'cors' });
       if (!response.ok) throw new Error('Fetch failed');
       const blob = await response.blob();
@@ -183,7 +228,6 @@ const App = () => {
       window.URL.revokeObjectURL(url);
       showToast(`✓ Download started: ${photo.title}`);
     } catch {
-      // Fallback direct open/download
       const link = document.createElement('a');
       link.href = photo.src;
       link.target = '_blank';
@@ -196,7 +240,36 @@ const App = () => {
     }
   };
 
-  // Photo Management Handlers
+  // Album Management Handlers
+  const handleCreateAlbum = (newAlbum, photoIds = []) => {
+    setAlbums((prev) => [newAlbum, ...prev]);
+    if (photoIds.length > 0) {
+      setPhotos((prev) =>
+        prev.map((p) => (photoIds.includes(p.id) ? { ...p, album: newAlbum.name } : p))
+      );
+    }
+    showToast(`📁 Created Album "${newAlbum.name}"!`);
+  };
+
+  const handleAssignToAlbum = (albumId, photoIds = []) => {
+    const targetAlbum = albums.find((a) => a.id === albumId);
+    if (!targetAlbum) return;
+
+    setPhotos((prev) =>
+      prev.map((p) => (photoIds.includes(p.id) ? { ...p, album: targetAlbum.name } : p))
+    );
+    setAlbums((prev) =>
+      prev.map((a) => (a.id === albumId ? { ...a, photoCount: (a.photoCount || 0) + photoIds.length } : a))
+    );
+    showToast(`✓ Assigned ${photoIds.length} photos to "${targetAlbum.name}"!`);
+  };
+
+  const handleBatchDeletePhotos = (photoIds = []) => {
+    setPhotos((prev) => prev.filter((p) => !photoIds.includes(p.id)));
+    showToast(`🗑️ Removed ${photoIds.length} photos.`);
+  };
+
+  // Photo CRUD Handlers
   const handleOpenAddModal = () => {
     setEditingPhoto(null);
     setIsFormModalOpen(true);
@@ -241,13 +314,15 @@ const App = () => {
 
   const handleResetToDefaults = () => {
     setPhotos(defaultPhotosData);
+    setAlbums(DEFAULT_ALBUMS);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultPhotosData));
+      localStorage.setItem(ALBUMS_KEY, JSON.stringify(DEFAULT_ALBUMS));
     } catch (e) {
       console.error(e);
     }
     if (selectedPhoto) setSelectedPhoto(null);
-    showToast('🔄 Restored default preset photos!');
+    showToast('🔄 Restored default preset gallery!');
   };
 
   return (
@@ -280,7 +355,7 @@ const App = () => {
             onDownloadPhoto={handleDownloadPhoto}
             onNavigate={handleNavigate}
             onTagClick={handleTagClick}
-            onSelectPhoto={setSelectedPhoto}
+            onSelectPhoto={handleSelectPhoto}
             onEditPhoto={handleOpenEditModal}
             onDeletePhoto={handleOpenDeleteModal}
             onOpenAddModal={handleOpenAddModal}
@@ -290,6 +365,10 @@ const App = () => {
             photos={photos}
             likes={likes}
             collections={collections}
+            albums={albums}
+            onCreateAlbum={handleCreateAlbum}
+            onAssignToAlbum={handleAssignToAlbum}
+            onBatchDeletePhotos={handleBatchDeletePhotos}
             onToggleLike={handleToggleLike}
             onToggleCollection={handleToggleCollection}
             onDownloadPhoto={handleDownloadPhoto}
@@ -297,11 +376,12 @@ const App = () => {
             onSelectCategory={setSelectedCategory}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            onSelectPhoto={setSelectedPhoto}
+            onSelectPhoto={handleSelectPhoto}
             onEditPhoto={handleOpenEditModal}
             onDeletePhoto={handleOpenDeleteModal}
             onOpenAddModal={handleOpenAddModal}
             onOpenExportModal={() => setIsExportModalOpen(true)}
+            onShowToast={showToast}
           />
         )}
       </main>
@@ -317,7 +397,7 @@ const App = () => {
           onToggleCollection={(e) => handleToggleCollection(selectedPhoto.id, e)}
           onDownloadPhoto={(e) => handleDownloadPhoto(selectedPhoto, e)}
           onClose={() => setSelectedPhoto(null)}
-          onNavigate={setSelectedPhoto}
+          onNavigate={handleSelectPhoto}
           onEditPhoto={handleOpenEditModal}
           onDeletePhoto={handleOpenDeleteModal}
           onShowToast={showToast}

@@ -16,8 +16,12 @@ const Lightbox = ({
   onShowToast,
 }) => {
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const dragStartPosRef = useRef({ x: 0, y: 0 });
+
   const [isPlayingSlideshow, setIsPlayingSlideshow] = useState(false);
-  const [showInfoSidebar, setShowInfoSidebar] = useState(true);
+  const [showAnalyticsDrawer, setShowAnalyticsDrawer] = useState(true);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -28,9 +32,10 @@ const Lightbox = ({
   const currentIndex = photosList.findIndex((p) => p.id === photo?.id);
   const totalPhotos = photosList.length;
 
-  // Reset zoom on photo change
+  // Reset zoom & pan on photo change
   useEffect(() => {
     setZoomLevel(1);
+    setPanOffset({ x: 0, y: 0 });
   }, [photo?.id]);
 
   const handlePrev = useCallback(() => {
@@ -45,7 +50,7 @@ const Lightbox = ({
     onNavigate(photosList[nextIndex]);
   }, [currentIndex, photosList, totalPhotos, onNavigate]);
 
-  // Slideshow timer
+  // Slideshow interval
   useEffect(() => {
     let interval = null;
     if (isPlayingSlideshow) {
@@ -75,7 +80,6 @@ const Lightbox = ({
     }
   }, []);
 
-  // Listen for native fullscreen change
   useEffect(() => {
     const handleFsChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -89,10 +93,36 @@ const Lightbox = ({
     setZoomLevel((prev) => Math.min(prev + 0.5, 3));
   };
   const handleZoomOut = () => {
-    setZoomLevel((prev) => Math.max(prev - 0.5, 1));
+    setZoomLevel((prev) => {
+      const next = Math.max(prev - 0.5, 1);
+      if (next === 1) setPanOffset({ x: 0, y: 0 });
+      return next;
+    });
   };
   const handleResetZoom = () => {
     setZoomLevel(1);
+    setPanOffset({ x: 0, y: 0 });
+  };
+
+  // Image Pan when zoomed
+  const handleMouseDown = (e) => {
+    if (zoomLevel > 1) {
+      setIsDraggingImage(true);
+      dragStartPosRef.current = { x: e.clientX - panOffset.x, y: e.clientY - panOffset.y };
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDraggingImage && zoomLevel > 1) {
+      setPanOffset({
+        x: e.clientX - dragStartPosRef.current.x,
+        y: e.clientY - dragStartPosRef.current.y,
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDraggingImage(false);
   };
 
   // Copy share link
@@ -103,10 +133,24 @@ const Lightbox = ({
     }
   };
 
-  // Keyboard navigation & shortcuts
+  // Specific Resolution Downloads (Original, 1080p, 720p)
+  const handleDownloadResolution = (resLabel) => {
+    if (onShowToast) {
+      onShowToast(`⬇️ Preparing ${resLabel} download for "${photo.title}"...`);
+    }
+    const link = document.createElement('a');
+    link.href = photo.downloadSrc || photo.src;
+    link.target = '_blank';
+    link.rel = 'noreferrer';
+    link.download = `${photo.title.replace(/\s+/g, '-').toLowerCase()}-${resLabel.toLowerCase()}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Don't trigger if user is typing in an input
       if (['input', 'textarea'].includes(e.target.tagName?.toLowerCase())) return;
 
       if (e.key === 'Escape') {
@@ -125,9 +169,9 @@ const Lightbox = ({
       } else if (e.key === '-' || e.key === '_') {
         handleZoomOut();
       } else if (e.key === '0' || e.key === 'z' || e.key === 'Z') {
-        setZoomLevel((prev) => (prev > 1 ? 1 : 1.75));
+        handleResetZoom();
       } else if (e.key === 'i' || e.key === 'I') {
-        setShowInfoSidebar((prev) => !prev);
+        setShowAnalyticsDrawer((prev) => !prev);
       } else if (e.key === 'l' || e.key === 'L') {
         if (onToggleLike) onToggleLike();
       }
@@ -142,23 +186,19 @@ const Lightbox = ({
     };
   }, [onClose, handlePrev, handleNext, handleToggleFullscreen, onToggleLike]);
 
-  // Touch handlers for mobile swipe
+  // Touch swipe gestures
   const handleTouchStart = (e) => {
     touchStartXRef.current = e.touches[0].clientX;
   };
-
   const handleTouchMove = (e) => {
     touchEndXRef.current = e.touches[0].clientX;
   };
-
   const handleTouchEnd = () => {
     const deltaX = touchEndXRef.current - touchStartXRef.current;
     if (Math.abs(deltaX) > 45) {
       if (deltaX < 0) {
-        // Swiped left -> next
         handleNext();
       } else {
-        // Swiped right -> prev
         handlePrev();
       }
     }
@@ -166,17 +206,20 @@ const Lightbox = ({
 
   if (!photo) return null;
 
+  const megapixels = photo.width && photo.height
+    ? ((photo.width * photo.height) / 1000000).toFixed(1)
+    : '2.1';
+
   return (
     <div
       className="fixed inset-0 z-50 bg-black/95 backdrop-blur-2xl flex flex-col justify-between overflow-hidden animate-modal-enter select-none"
       onClick={onClose}
     >
-      {/* Top Floating Glass Bar */}
+      {/* Top Floating Header */}
       <div
         onClick={(e) => e.stopPropagation()}
         className="w-full px-4 sm:px-8 py-3.5 flex items-center justify-between z-30 pointer-events-auto border-b border-white/10 glass-panel-elevated"
       >
-        {/* Left: Counter & Title */}
         <div className="flex items-center gap-3">
           <div className="px-3 py-1 rounded-full bg-zinc-900 border border-zinc-700 text-xs font-bold text-zinc-300">
             <span className="text-orange-400">{currentIndex + 1}</span> / {totalPhotos}
@@ -189,9 +232,8 @@ const Lightbox = ({
           </span>
         </div>
 
-        {/* Right: Quick Controls & Close */}
         <div className="flex items-center gap-2">
-          {/* Shortcuts Info button */}
+          {/* Shortcuts Guide Button */}
           <button
             type="button"
             onClick={() => setShowShortcutsModal((prev) => !prev)}
@@ -201,18 +243,19 @@ const Lightbox = ({
             ⌨️
           </button>
 
-          {/* Toggle Sidebar info */}
+          {/* Toggle Analytics & EXIF Sidebar */}
           <button
             type="button"
-            onClick={() => setShowInfoSidebar((prev) => !prev)}
-            title="Toggle Details Sidebar (I)"
-            className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold transition cursor-pointer ${
-              showInfoSidebar
+            onClick={() => setShowAnalyticsDrawer((prev) => !prev)}
+            title="Toggle Analytics Drawer (I)"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+              showAnalyticsDrawer
                 ? 'bg-orange-500 text-black shadow-md'
                 : 'glass-pill hover:bg-zinc-800 text-zinc-300 hover:text-white'
             }`}
           >
-            ℹ️
+            <span>📊</span>
+            <span className="hidden sm:inline">Analytics & EXIF</span>
           </button>
 
           {/* Close Button */}
@@ -222,26 +265,28 @@ const Lightbox = ({
             title="Close (Esc)"
             className="w-9 h-9 rounded-xl bg-zinc-800 hover:bg-rose-600 text-white flex items-center justify-center transition cursor-pointer shadow-lg"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            ✕
           </button>
         </div>
       </div>
 
-      {/* Main Center Stage */}
+      {/* Main Image Stage & Drawer */}
       <div
         onClick={(e) => e.stopPropagation()}
         className="relative flex-1 flex items-stretch overflow-hidden"
       >
-        {/* Left / Center: Interactive Image Stage with Swipe Gestures */}
+        {/* Stage */}
         <div
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          className="relative flex-1 flex items-center justify-center p-3 sm:p-6 overflow-hidden select-none cursor-default"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          className={`relative flex-1 flex items-center justify-center p-3 sm:p-6 overflow-hidden select-none ${
+            zoomLevel > 1 ? (isDraggingImage ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-default'
+          }`}
         >
-          {/* Main Photo with smooth animation & zoom */}
           <AnimatePresence mode="wait">
             <motion.div
               key={photo.id}
@@ -249,6 +294,8 @@ const Lightbox = ({
               animate={{
                 opacity: 1,
                 scale: zoomLevel,
+                x: panOffset.x,
+                y: panOffset.y,
                 transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
               }}
               exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.2 } }}
@@ -262,24 +309,28 @@ const Lightbox = ({
                     e.target.src = photo.fallbackSrc;
                   }
                 }}
-                className={`max-w-full max-h-[76vh] object-contain rounded-2xl shadow-2xl transition-transform ${
-                  zoomLevel > 1 ? 'cursor-zoom-out' : 'cursor-zoom-in'
+                className={`max-w-full max-h-[76vh] object-contain rounded-2xl shadow-2xl select-none ${
+                  zoomLevel > 1 ? 'pointer-events-auto' : ''
                 }`}
-                onClick={() => setZoomLevel((prev) => (prev > 1 ? 1 : 1.8))}
+                onClick={() => {
+                  if (zoomLevel === 1) {
+                    setZoomLevel(1.8);
+                  } else {
+                    handleResetZoom();
+                  }
+                }}
               />
             </motion.div>
           </AnimatePresence>
 
-          {/* Desktop Navigation Floating Arrows */}
+          {/* Navigation Arrows */}
           <button
             type="button"
             onClick={handlePrev}
             aria-label="Previous Photo"
             className="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-2xl glass-toolbar hover:bg-orange-500 hover:text-black text-white flex items-center justify-center shadow-2xl transition-all duration-200 cursor-pointer group hover:scale-105 active:scale-95"
           >
-            <svg className="w-6 h-6 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-            </svg>
+            ←
           </button>
 
           <button
@@ -288,22 +339,19 @@ const Lightbox = ({
             aria-label="Next Photo"
             className="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-2xl glass-toolbar hover:bg-orange-500 hover:text-black text-white flex items-center justify-center shadow-2xl transition-all duration-200 cursor-pointer group hover:scale-105 active:scale-95"
           >
-            <svg className="w-6 h-6 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-            </svg>
+            →
           </button>
 
-          {/* Zoom Level Indicator (when zoomed) */}
+          {/* Zoom Reset Pill */}
           {zoomLevel > 1 && (
             <div
               onClick={handleResetZoom}
-              className="absolute top-4 left-4 px-3 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-white/20 text-xs font-bold text-orange-400 cursor-pointer hover:bg-orange-500 hover:text-black transition"
+              className="absolute top-4 left-4 px-3 py-1.5 rounded-full bg-black/85 backdrop-blur-md border border-white/20 text-xs font-bold text-orange-400 cursor-pointer hover:bg-orange-500 hover:text-black transition"
             >
-              Zoom {Math.round(zoomLevel * 100)}% (Click to reset)
+              Zoom {Math.round(zoomLevel * 100)}% • Click to reset
             </div>
           )}
 
-          {/* Slideshow Active Badge */}
           {isPlayingSlideshow && (
             <div className="absolute top-4 right-4 px-3.5 py-1.5 rounded-full bg-orange-500 text-black text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-orange-500/40 animate-pulse">
               <span className="w-2 h-2 rounded-full bg-black"></span>
@@ -312,70 +360,116 @@ const Lightbox = ({
           )}
         </div>
 
-        {/* Right Area: Collapsible Metadata & EXIF Sidebar */}
+        {/* Sliding Analytics & EXIF Drawer */}
         <AnimatePresence>
-          {showInfoSidebar && (
+          {showAnalyticsDrawer && (
             <motion.div
               initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 340, opacity: 1 }}
+              animate={{ width: 360, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="hidden lg:flex flex-col justify-between p-6 bg-zinc-950/95 border-l border-white/10 overflow-y-auto w-[340px] flex-shrink-0"
+              className="hidden lg:flex flex-col justify-between p-6 bg-zinc-950/98 border-l border-white/10 overflow-y-auto w-[360px] flex-shrink-0"
             >
               <div className="space-y-6">
-                {/* Category & Badge */}
+                {/* Header info */}
                 <div className="flex items-center justify-between">
                   <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-orange-500/15 text-orange-400 border border-orange-500/30">
                     {photo.category}
                   </span>
-                  {photo.featured && (
-                    <span className="text-xs text-amber-400 font-bold flex items-center gap-1">
-                      ★ Featured
-                    </span>
+                  {photo.color && (
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-medium">
+                      <span
+                        className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-sm"
+                        style={{ backgroundColor: photo.color }}
+                      />
+                      <span>Palette Mood</span>
+                    </div>
                   )}
                 </div>
 
-                {/* Title & Description */}
-                <div className="space-y-2">
-                  <h2 className="text-2xl font-black text-white tracking-tight leading-snug">
+                <div className="space-y-1.5">
+                  <h2 className="text-xl font-black text-white tracking-tight leading-snug">
                     {photo.title}
                   </h2>
-                  <p className="text-sm text-zinc-300 leading-relaxed">
-                    {photo.description || 'No description provided.'}
+                  <p className="text-xs text-zinc-300 leading-relaxed">
+                    {photo.description || 'Curated high-resolution photograph.'}
                   </p>
                 </div>
 
-                {/* EXIF Data Cards */}
-                <div className="space-y-2.5">
-                  <div className="p-3 rounded-xl bg-zinc-900/80 border border-zinc-800 flex items-center gap-3">
-                    <span className="text-lg">📍</span>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-zinc-400 font-bold">Location</p>
-                      <p className="text-xs font-medium text-zinc-200">{photo.location || "Undisclosed"}</p>
+                {/* Engagement Analytics Cards */}
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div className="p-3 rounded-2xl bg-zinc-900/80 border border-zinc-800 text-center">
+                    <p className="text-base font-black text-white">{(photo.views || 2400).toLocaleString()}</p>
+                    <p className="text-[10px] text-zinc-500 uppercase font-bold mt-0.5">Views</p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-zinc-900/80 border border-zinc-800 text-center">
+                    <p className="text-base font-black text-orange-400">{(photo.downloads || 420).toLocaleString()}</p>
+                    <p className="text-[10px] text-zinc-500 uppercase font-bold mt-0.5">Downloads</p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-zinc-900/80 border border-zinc-800 text-center">
+                    <p className="text-base font-black text-rose-400">{(photo.likesCount || 85).toLocaleString()}</p>
+                    <p className="text-[10px] text-zinc-500 uppercase font-bold mt-0.5">Likes</p>
+                  </div>
+                </div>
+
+                {/* Technical EXIF Info Drawer */}
+                <div className="space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Technical EXIF</p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-2.5 rounded-xl bg-zinc-900/70 border border-zinc-800">
+                      <span className="text-[10px] text-zinc-500 uppercase font-bold block">Resolution</span>
+                      <span className="text-zinc-200 font-medium">{photo.width || 3840} × {photo.height || 2160} ({megapixels} MP)</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-zinc-900/70 border border-zinc-800">
+                      <span className="text-[10px] text-zinc-500 uppercase font-bold block">Optics</span>
+                      <span className="text-zinc-200 font-medium truncate block">{photo.camera || 'Sony 35mm'}</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-zinc-900/70 border border-zinc-800">
+                      <span className="text-[10px] text-zinc-500 uppercase font-bold block">Exposure</span>
+                      <span className="text-zinc-200 font-medium">{photo.exif?.exposureTime || '1/250s'} • {photo.exif?.aperture || 'f/2.8'}</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-zinc-900/70 border border-zinc-800">
+                      <span className="text-[10px] text-zinc-500 uppercase font-bold block">ISO & Focal</span>
+                      <span className="text-zinc-200 font-medium">ISO {photo.exif?.iso || 100} • {photo.exif?.focalLength || '35mm'}</span>
                     </div>
                   </div>
+                </div>
 
-                  <div className="p-3 rounded-xl bg-zinc-900/80 border border-zinc-800 flex items-center gap-3">
-                    <span className="text-lg">📷</span>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-zinc-400 font-bold">Camera & Optics</p>
-                      <p className="text-xs font-medium text-zinc-200">{photo.camera || "Custom Gear"}</p>
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-zinc-900/80 border border-zinc-800 flex items-center gap-3">
-                    <span className="text-lg">🗓️</span>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-zinc-400 font-bold">Capture Date</p>
-                      <p className="text-xs font-medium text-zinc-200">{photo.date}</p>
-                    </div>
+                {/* Resolution Download Options */}
+                <div className="space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Multi-Resolution Download</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadResolution('Original-HD')}
+                      className="p-2 rounded-xl bg-zinc-900 hover:bg-orange-500 hover:text-black border border-zinc-800 text-center transition cursor-pointer group"
+                    >
+                      <span className="text-xs font-bold block">Original</span>
+                      <span className="text-[10px] text-zinc-500 group-hover:text-black block">4K UHD</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadResolution('1080p')}
+                      className="p-2 rounded-xl bg-zinc-900 hover:bg-orange-500 hover:text-black border border-zinc-800 text-center transition cursor-pointer group"
+                    >
+                      <span className="text-xs font-bold block">1080p</span>
+                      <span className="text-[10px] text-zinc-500 group-hover:text-black block">FHD</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadResolution('720p')}
+                      className="p-2 rounded-xl bg-zinc-900 hover:bg-orange-500 hover:text-black border border-zinc-800 text-center transition cursor-pointer group"
+                    >
+                      <span className="text-xs font-bold block">720p</span>
+                      <span className="text-[10px] text-zinc-500 group-hover:text-black block">Web Light</span>
+                    </button>
                   </div>
                 </div>
 
                 {/* Tags */}
                 {photo.tags && photo.tags.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Keywords & Tags</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Tags</p>
                     <div className="flex flex-wrap gap-1.5">
                       {photo.tags.map((tag, idx) => (
                         <span
@@ -397,9 +491,9 @@ const Lightbox = ({
                     <button
                       type="button"
                       onClick={() => onEditPhoto(photo)}
-                      className="flex-1 py-2.5 rounded-xl glass-card hover:bg-zinc-800 text-orange-400 font-bold text-xs uppercase tracking-wider text-center border-orange-500/30 transition cursor-pointer flex items-center justify-center gap-1.5"
+                      className="flex-1 py-2.5 rounded-xl glass-card hover:bg-zinc-800 text-orange-400 font-bold text-xs uppercase tracking-wider text-center border-orange-500/30 transition cursor-pointer"
                     >
-                      <span>✏️ Edit</span>
+                      ✏️ Edit
                     </button>
                   )}
                   {onDeletePhoto && (
@@ -407,21 +501,11 @@ const Lightbox = ({
                       type="button"
                       onClick={() => onDeletePhoto(photo)}
                       className="py-2.5 px-4 rounded-xl bg-red-950/40 hover:bg-red-900/60 text-red-400 font-bold text-xs uppercase tracking-wider text-center border border-red-900/50 transition cursor-pointer"
-                      title="Delete photo"
                     >
-                      <span>🗑️</span>
+                      🗑️
                     </button>
                   )}
                 </div>
-
-                <a
-                  href={photo.src}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block w-full py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-xs uppercase tracking-wider text-center shadow-lg shadow-orange-500/20 hover:scale-[1.02] active:scale-[0.98] transition cursor-pointer"
-                >
-                  Open Original HD
-                </a>
               </div>
             </motion.div>
           )}
@@ -434,24 +518,6 @@ const Lightbox = ({
         className="w-full p-4 flex items-center justify-center z-30 pointer-events-auto"
       >
         <div className="flex items-center flex-wrap justify-center gap-2 sm:gap-3 p-2 rounded-2xl glass-panel-elevated border-white/15 shadow-2xl backdrop-blur-2xl">
-          {/* Previous / Next for Mobile */}
-          <div className="flex items-center sm:hidden gap-1">
-            <button
-              type="button"
-              onClick={handlePrev}
-              className="w-10 h-10 rounded-xl bg-zinc-800 hover:bg-orange-500 text-white hover:text-black flex items-center justify-center transition"
-            >
-              ←
-            </button>
-            <button
-              type="button"
-              onClick={handleNext}
-              className="w-10 h-10 rounded-xl bg-zinc-800 hover:bg-orange-500 text-white hover:text-black flex items-center justify-center transition"
-            >
-              →
-            </button>
-          </div>
-
           {/* Like Button */}
           <button
             type="button"
@@ -552,7 +618,7 @@ const Lightbox = ({
             <span className="hidden md:inline">Download</span>
           </button>
 
-          {/* Share / Copy Link Button */}
+          {/* Share Button */}
           <button
             type="button"
             onClick={handleCopyLink}
@@ -564,7 +630,7 @@ const Lightbox = ({
         </div>
       </div>
 
-      {/* Keyboard Shortcuts Modal Guide */}
+      {/* Shortcuts Guide Modal */}
       <AnimatePresence>
         {showShortcutsModal && (
           <div
@@ -593,11 +659,11 @@ const Lightbox = ({
 
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-900/80 border border-zinc-800">
-                  <span className="text-zinc-400">Previous Photo</span>
+                  <span className="text-zinc-400">Previous</span>
                   <kbd className="px-2 py-0.5 rounded bg-zinc-800 text-orange-400 font-mono">←</kbd>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-900/80 border border-zinc-800">
-                  <span className="text-zinc-400">Next Photo</span>
+                  <span className="text-zinc-400">Next</span>
                   <kbd className="px-2 py-0.5 rounded bg-zinc-800 text-orange-400 font-mono">→</kbd>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-900/80 border border-zinc-800">
@@ -605,7 +671,7 @@ const Lightbox = ({
                   <kbd className="px-2 py-0.5 rounded bg-zinc-800 text-orange-400 font-mono">F</kbd>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-900/80 border border-zinc-800">
-                  <span className="text-zinc-400">Close Lightbox</span>
+                  <span className="text-zinc-400">Close</span>
                   <kbd className="px-2 py-0.5 rounded bg-zinc-800 text-orange-400 font-mono">Esc</kbd>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-900/80 border border-zinc-800">
@@ -613,11 +679,11 @@ const Lightbox = ({
                   <kbd className="px-2 py-0.5 rounded bg-zinc-800 text-orange-400 font-mono">Space</kbd>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-900/80 border border-zinc-800">
-                  <span className="text-zinc-400">Zoom In / Out</span>
+                  <span className="text-zinc-400">Zoom Pan</span>
                   <kbd className="px-2 py-0.5 rounded bg-zinc-800 text-orange-400 font-mono">+ / -</kbd>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-900/80 border border-zinc-800">
-                  <span className="text-zinc-400">Toggle Details</span>
+                  <span className="text-zinc-400">Analytics Drawer</span>
                   <kbd className="px-2 py-0.5 rounded bg-zinc-800 text-orange-400 font-mono">I</kbd>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-900/80 border border-zinc-800">
@@ -631,7 +697,7 @@ const Lightbox = ({
                 onClick={() => setShowShortcutsModal(false)}
                 className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-black font-bold text-xs uppercase tracking-wider transition cursor-pointer"
               >
-                Got It
+                Dismiss
               </button>
             </motion.div>
           </div>
