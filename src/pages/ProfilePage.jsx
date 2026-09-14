@@ -1,25 +1,24 @@
 import React, { useState } from 'react';
 import GalleryGrid from '../components/GalleryGrid';
+import { useGallery } from '../context/GalleryContext';
 
-const ProfilePage = ({
-  photos = [],
-  likes = {},
-  collections = {},
-  albums = [],
-  onToggleLike,
-  onToggleCollection,
-  onDownloadPhoto,
-  onSelectPhoto,
-  onOpenAddModal,
-  onNavigate,
-}) => {
+const ProfilePage = ({ onOpenAddModal, onNavigate }) => {
+  const {
+    photos,
+    likes,
+    collections,
+    albums,
+    toggleLike,
+    toggleCollection,
+    downloadPhoto,
+    userProfile,
+  } = useGallery();
+
   const [activeTab, setActiveTab] = useState('uploads'); // 'uploads' | 'collections' | 'liked'
 
-  // User uploaded photos (e.g. photos where author is user or personal category)
   const userUploads = photos.filter((p) => !String(p.id).startsWith('unsplash-'));
   const likedPhotos = photos.filter((p) => !!likes[p.id]);
 
-  // Aggregate Metrics
   const totalViews = photos.reduce((acc, curr) => acc + (curr.views || 1200), 0);
   const totalDownloads = photos.reduce((acc, curr) => acc + (curr.downloads || 320), 0);
   const totalLikes = Object.values(likes).filter(Boolean).length;
@@ -29,7 +28,7 @@ const ProfilePage = ({
       {/* Cover Photo Banner */}
       <div className="relative h-64 sm:h-80 w-full overflow-hidden bg-zinc-900">
         <img
-          src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=2000&q=80"
+          src={userProfile.cover || "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=2000&q=80"}
           alt="Profile Cover"
           className="w-full h-full object-cover opacity-60"
         />
@@ -44,8 +43,8 @@ const ProfilePage = ({
             <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-gradient-to-tr from-orange-500 via-amber-400 to-yellow-400 p-1 shadow-2xl flex-shrink-0">
               <div className="w-full h-full bg-zinc-950 rounded-[22px] flex items-center justify-center overflow-hidden">
                 <img
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80"
-                  alt="Rohit Sharma"
+                  src={userProfile.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80"}
+                  alt={userProfile.name}
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -54,18 +53,18 @@ const ProfilePage = ({
             {/* Bio Details */}
             <div className="space-y-2">
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
-                <h1 className="text-2xl sm:text-3xl font-black text-white">Rohit Sharma</h1>
+                <h1 className="text-2xl sm:text-3xl font-black text-white">{userProfile.name}</h1>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">
                   Featured Creator
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-zinc-400">@rohit_captures • Mumbai, India & Global</p>
+              <p className="text-xs sm:text-sm text-zinc-400">{userProfile.handle} • {userProfile.location}</p>
               <p className="text-xs sm:text-sm text-zinc-300 max-w-xl leading-relaxed">
-                Exploring the subtle interplay of light, architectural lines, and urban stillness. Available for commercial commissions & landscape prints.
+                {userProfile.bio}
               </p>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 pt-1 text-xs text-zinc-400">
-                <span>📷 Sony Alpha A7 IV • Leica Q2</span>
-                <span>🌐 rohit.gallery</span>
+                <span>📷 {userProfile.gear}</span>
+                <span>🌐 {userProfile.website}</span>
               </div>
             </div>
           </div>
@@ -156,10 +155,10 @@ const ProfilePage = ({
               photos={userUploads}
               likes={likes}
               collections={collections}
-              onToggleLike={onToggleLike}
-              onToggleCollection={onToggleCollection}
-              onDownloadPhoto={onDownloadPhoto}
-              onSelectPhoto={onSelectPhoto}
+              onToggleLike={toggleLike}
+              onToggleCollection={toggleCollection}
+              onDownloadPhoto={downloadPhoto}
+              onSelectPhoto={(p) => onNavigate('photo', p.id)}
               layoutMode="grid"
             />
           </div>
@@ -213,7 +212,7 @@ const ProfilePage = ({
                 </p>
                 <button
                   onClick={() => onNavigate('home')}
-                  className="px-5 py-2.5 rounded-xl bg-orange-500 text-black font-bold text-xs uppercase"
+                  className="px-5 py-2.5 rounded-xl bg-orange-500 text-black font-bold text-xs uppercase cursor-pointer"
                 >
                   Explore Feed
                 </button>
@@ -223,10 +222,10 @@ const ProfilePage = ({
                 photos={likedPhotos}
                 likes={likes}
                 collections={collections}
-                onToggleLike={onToggleLike}
-                onToggleCollection={onToggleCollection}
-                onDownloadPhoto={onDownloadPhoto}
-                onSelectPhoto={onSelectPhoto}
+                onToggleLike={toggleLike}
+                onToggleCollection={toggleCollection}
+                onDownloadPhoto={downloadPhoto}
+                onSelectPhoto={(p) => onNavigate('photo', p.id)}
                 layoutMode="grid"
               />
             )}

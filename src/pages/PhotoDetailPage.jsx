@@ -1,26 +1,58 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import GalleryGrid from '../components/GalleryGrid';
+import OptimizedImage from '../components/OptimizedImage';
+import { useGallery } from '../context/GalleryContext';
 
 const PhotoDetailPage = ({
   photoId,
-  photos = [],
-  likes = {},
-  collections = {},
-  followingCreators = {},
-  onToggleLike,
-  onToggleCollection,
-  onToggleFollow,
-  onDownloadPhoto,
   onNavigate,
-  onSelectPhoto,
-  onShowToast,
+  onGoBack,
 }) => {
+  const {
+    photos,
+    likes,
+    collections,
+    followingCreators,
+    toggleLike,
+    toggleCollection,
+    toggleFollow,
+    downloadPhoto,
+    showToast,
+  } = useGallery();
+
   const [downloadDropdownOpen, setDownloadDropdownOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Find photo by ID (supports number or string ID)
+  // Find photo by ID
   const photo = photos.find((p) => String(p.id) === String(photoId)) || photos[0];
+
+  // Dynamic document.title update with cleanup
+  useEffect(() => {
+    const originalTitle = document.title;
+    if (photo) {
+      const author = photo.author?.name || 'Rohit Sharma';
+      document.title = `${photo.title} by ${author} — Rohit's Gallery`;
+    }
+    return () => {
+      document.title = originalTitle;
+    };
+  }, [photo]);
+
+  // Keyboard navigation: Escape to go back
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (onGoBack) {
+          onGoBack();
+        } else if (onNavigate) {
+          onNavigate('home');
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onGoBack, onNavigate]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -33,8 +65,8 @@ const PhotoDetailPage = ({
         <h2 className="text-2xl font-bold text-white">Photograph Not Found</h2>
         <p className="text-sm text-zinc-400">The photograph you are looking for does not exist or has been removed.</p>
         <button
-          onClick={() => onNavigate('home')}
-          className="px-6 py-2.5 rounded-xl bg-orange-500 text-black font-bold text-xs uppercase tracking-wider"
+          onClick={() => onNavigate && onNavigate('home')}
+          className="px-6 py-2.5 rounded-xl bg-orange-500 text-black font-bold text-xs uppercase tracking-wider cursor-pointer"
         >
           Return to Feed
         </button>
@@ -47,27 +79,19 @@ const PhotoDetailPage = ({
   const creatorKey = photo.author?.username || 'rohit_captures';
   const isFollowing = !!followingCreators[creatorKey];
 
-  // Related photos: same category or matching tags, excluding current photo
+  // Related photos: same category or matching tags
   const relatedPhotos = photos
     .filter((p) => String(p.id) !== String(photo.id) && (p.category === photo.category || p.tags?.some((t) => photo.tags?.includes(t))))
     .slice(0, 6);
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
-    if (onShowToast) onShowToast('🔗 Direct photo link copied to clipboard!');
+    showToast('🔗 Direct photo link copied to clipboard!');
   };
 
   const handleDownloadResolution = (resLabel) => {
     setDownloadDropdownOpen(false);
-    if (onShowToast) onShowToast(`⬇️ Downloading ${resLabel} version of "${photo.title}"...`);
-    const link = document.createElement('a');
-    link.href = photo.downloadSrc || photo.src;
-    link.target = '_blank';
-    link.rel = 'noreferrer';
-    link.download = `${photo.title.replace(/\s+/g, '-').toLowerCase()}-${resLabel.toLowerCase()}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadPhoto(photo, resLabel);
   };
 
   const toggleFullscreen = () => {
@@ -89,10 +113,10 @@ const PhotoDetailPage = ({
       {/* Top Breadcrumbs & Back Navigation */}
       <div className="flex items-center justify-between gap-4 border-b border-zinc-800/80 pb-4">
         <button
-          onClick={() => onNavigate('home')}
+          onClick={() => (onGoBack ? onGoBack() : onNavigate('home'))}
           className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-orange-400 transition cursor-pointer"
         >
-          <span>← Back to Discover</span>
+          <span>← Back (Esc)</span>
         </button>
 
         <div className="flex items-center gap-2">
@@ -144,7 +168,7 @@ const PhotoDetailPage = ({
         <div className="flex items-center flex-wrap gap-2.5">
           <button
             type="button"
-            onClick={() => onToggleFollow && onToggleFollow(creatorKey)}
+            onClick={() => toggleFollow(creatorKey)}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
               isFollowing
                 ? 'bg-zinc-800 text-orange-400 border border-orange-500/40'
@@ -156,7 +180,7 @@ const PhotoDetailPage = ({
 
           <button
             type="button"
-            onClick={(e) => onToggleLike && onToggleLike(photo.id, e)}
+            onClick={(e) => toggleLike(photo.id, e)}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
               isLiked
                 ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30'
@@ -169,7 +193,7 @@ const PhotoDetailPage = ({
 
           <button
             type="button"
-            onClick={(e) => onToggleCollection && onToggleCollection(photo.id, e)}
+            onClick={(e) => toggleCollection(photo.id, e)}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
               isCollected
                 ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/30'
@@ -196,7 +220,7 @@ const PhotoDetailPage = ({
                 <button
                   type="button"
                   onClick={() => handleDownloadResolution('Original-4K')}
-                  className="w-full text-left p-2 rounded-xl hover:bg-zinc-800 text-xs text-white transition flex items-center justify-between"
+                  className="w-full text-left p-2 rounded-xl hover:bg-zinc-800 text-xs text-white transition flex items-center justify-between cursor-pointer"
                 >
                   <span className="font-bold">Original</span>
                   <span className="text-zinc-400 text-[10px]">4K UHD</span>
@@ -204,7 +228,7 @@ const PhotoDetailPage = ({
                 <button
                   type="button"
                   onClick={() => handleDownloadResolution('1080p')}
-                  className="w-full text-left p-2 rounded-xl hover:bg-zinc-800 text-xs text-white transition flex items-center justify-between"
+                  className="w-full text-left p-2 rounded-xl hover:bg-zinc-800 text-xs text-white transition flex items-center justify-between cursor-pointer"
                 >
                   <span className="font-bold">1080p</span>
                   <span className="text-zinc-400 text-[10px]">Full HD</span>
@@ -212,7 +236,7 @@ const PhotoDetailPage = ({
                 <button
                   type="button"
                   onClick={() => handleDownloadResolution('720p')}
-                  className="w-full text-left p-2 rounded-xl hover:bg-zinc-800 text-xs text-white transition flex items-center justify-between"
+                  className="w-full text-left p-2 rounded-xl hover:bg-zinc-800 text-xs text-white transition flex items-center justify-between cursor-pointer"
                 >
                   <span className="font-bold">720p</span>
                   <span className="text-zinc-400 text-[10px]">Web Optimized</span>
@@ -223,17 +247,20 @@ const PhotoDetailPage = ({
         </div>
       </div>
 
-      {/* Main High-Resolution Media Hero Display */}
+      {/* Main High-Resolution Media Hero Display with OptimizedImage */}
       <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4 }}
         className="relative rounded-3xl overflow-hidden glass-panel-elevated border-zinc-800 flex items-center justify-center bg-black/60 min-h-[400px] max-h-[82vh] p-2 sm:p-6"
       >
-        <img
+        <OptimizedImage
           src={photo.src}
+          fallbackSrc={photo.fallbackSrc}
           alt={photo.title}
-          className="max-w-full max-h-[78vh] object-contain rounded-2xl shadow-2xl"
+          dominantColor={photo.color || '#18181b'}
+          className="max-w-full max-h-[78vh] flex items-center justify-center"
+          imgClassName="max-w-full max-h-[78vh] object-contain rounded-2xl shadow-2xl"
         />
       </motion.div>
 
@@ -277,7 +304,7 @@ const PhotoDetailPage = ({
             </div>
           </div>
 
-          {/* Clickable Tags */}
+          {/* Clickable Exploration Tags */}
           {photo.tags && photo.tags.length > 0 && (
             <div className="space-y-2.5">
               <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400">Related Exploration Tags</h4>
@@ -286,7 +313,7 @@ const PhotoDetailPage = ({
                   <button
                     key={idx}
                     type="button"
-                    onClick={() => onNavigate('gallery', 'all', tag)}
+                    onClick={() => onNavigate && onNavigate('gallery', { category: 'all', search: tag })}
                     className="px-3.5 py-1.5 rounded-full text-xs font-medium glass-pill text-zinc-300 hover:text-orange-400 hover:border-orange-500/50 transition cursor-pointer"
                   >
                     #{tag}
@@ -343,7 +370,7 @@ const PhotoDetailPage = ({
 
           <div className="pt-2">
             <a
-              href={photo.src}
+              href={photo.downloadSrc || photo.src}
               target="_blank"
               rel="noreferrer"
               className="block w-full py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-orange-400 hover:text-orange-300 font-bold text-xs uppercase tracking-wider text-center border border-zinc-800 transition"
@@ -363,7 +390,7 @@ const PhotoDetailPage = ({
               <h2 className="text-2xl font-black text-white mt-0.5">More Like This</h2>
             </div>
             <button
-              onClick={() => onNavigate('gallery', photo.category)}
+              onClick={() => onNavigate && onNavigate('gallery', { category: photo.category })}
               className="text-xs font-bold uppercase text-orange-400 hover:underline cursor-pointer"
             >
               View More in {photo.category} →
@@ -374,12 +401,10 @@ const PhotoDetailPage = ({
             photos={relatedPhotos}
             likes={likes}
             collections={collections}
-            onToggleLike={onToggleLike}
-            onToggleCollection={onToggleCollection}
-            onDownloadPhoto={onDownloadPhoto}
-            onSelectPhoto={(p) => {
-              window.location.hash = `photo/${p.id}`;
-            }}
+            onToggleLike={toggleLike}
+            onToggleCollection={toggleCollection}
+            onDownloadPhoto={downloadPhoto}
+            onSelectPhoto={(p) => onNavigate && onNavigate('photo', p.id)}
             layoutMode="grid"
           />
         </div>

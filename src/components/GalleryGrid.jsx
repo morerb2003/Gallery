@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import OptimizedImage from './OptimizedImage';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -163,16 +164,17 @@ const GalleryGrid = ({
                     />
                   )}
 
-                  <div className="w-14 h-14 rounded-xl overflow-hidden bg-zinc-900 flex-shrink-0 relative">
-                    <img
+                  <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 relative">
+                    <OptimizedImage
                       src={photo.src}
+                      fallbackSrc={photo.fallbackSrc}
                       alt={photo.title}
-                      loading="lazy"
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      dominantColor={photo.color || '#18181b'}
+                      imgClassName="group-hover:scale-110 transition-transform duration-500"
                     />
                     {photo.color && (
                       <span
-                        className="absolute bottom-1 right-1 w-2.5 h-2.5 rounded-full border border-white/30"
+                        className="absolute bottom-1 right-1 w-2.5 h-2.5 rounded-full border border-white/30 z-10"
                         style={{ backgroundColor: photo.color }}
                       />
                     )}
@@ -254,16 +256,12 @@ const GalleryGrid = ({
                     : 'aspect-[4/3]'
                 }`}
               >
-                <img
+                <OptimizedImage
                   src={photo.src}
+                  fallbackSrc={photo.fallbackSrc}
                   alt={photo.title}
-                  loading="lazy"
-                  onError={(e) => {
-                    if (photo.fallbackSrc && e.target.src !== photo.fallbackSrc) {
-                      e.target.src = photo.fallbackSrc;
-                    }
-                  }}
-                  className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700 ease-out"
+                  dominantColor={photo.color || '#18181b'}
+                  imgClassName="group-hover:scale-108 transition-transform duration-700 ease-out"
                 />
 
                 {/* Scrim Overlay */}

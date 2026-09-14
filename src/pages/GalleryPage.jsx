@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import JSZip from 'jszip';
 import SearchBar from '../components/SearchBar';
 import CategoryTabs from '../components/CategoryTabs';
 import GalleryGrid from '../components/GalleryGrid';
 import AlbumModal from '../components/AlbumModal';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { useGallery } from '../context/GalleryContext';
 
 const COLOR_FILTERS = [
   { id: 'all', label: 'All Colors', hex: null },
@@ -17,32 +18,35 @@ const COLOR_FILTERS = [
 ];
 
 const GalleryPage = ({
-  photos = [],
-  likes = {},
-  collections = {},
-  albums = [],
-  onCreateAlbum,
-  onAssignToAlbum,
-  onBatchDeletePhotos,
-  onToggleLike,
-  onToggleCollection,
-  onDownloadPhoto,
-  selectedCategory = 'all',
-  onSelectCategory,
-  searchQuery = '',
-  onSearchChange,
+  queryParams = {},
+  updateQueryParams,
+  onOpenAddModal,
+  onOpenExportModal,
   onSelectPhoto,
   onEditPhoto,
   onDeletePhoto,
-  onOpenAddModal,
-  onOpenExportModal,
-  onShowToast,
 }) => {
-  const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
-  const [layoutMode, setLayoutMode] = useState('grid'); // 'grid' | 'compact' | 'masonry'
-  const [selectedColor, setSelectedColor] = useState('all');
-  const [sortBy, setSortBy] = useState('popular'); // 'popular' | 'newest' | 'resolution'
-  const [orientationFilter, setOrientationFilter] = useState('all'); // 'all' | 'landscape' | 'portrait'
+  const {
+    photos,
+    likes,
+    collections,
+    albums,
+    toggleLike,
+    toggleCollection,
+    downloadPhoto,
+    createAlbum,
+    assignToAlbum,
+    batchDeletePhotos,
+    showToast,
+  } = useGallery();
+
+  // Initialize state from URL query parameters
+  const [selectedCategory, setSelectedCategory] = useState(queryParams.category || 'all');
+  const [searchQuery, setSearchQuery] = useState(queryParams.search || '');
+  const [selectedColor, setSelectedColor] = useState(queryParams.color || 'all');
+  const [sortBy, setSortBy] = useState(queryParams.sort || 'popular');
+  const [orientationFilter, setOrientationFilter] = useState(queryParams.orientation || 'all');
+  const [layoutMode, setLayoutMode] = useState(queryParams.layout || 'grid'); // 'grid' | 'compact' | 'masonry'
   const [selectedAlbum, setSelectedAlbum] = useState('all');
 
   // Multi-Select Batch Actions State
@@ -54,9 +58,29 @@ const GalleryPage = ({
   const [visibleCount, setVisibleCount] = useState(12);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Keep search in sync
-  const activeSearch = onSearchChange ? searchQuery : localSearchQuery;
-  const setActiveSearch = onSearchChange || setLocalSearchQuery;
+  // Sync state changes back to URL query parameters
+  useEffect(() => {
+    if (updateQueryParams) {
+      updateQueryParams({
+        category: selectedCategory !== 'all' ? selectedCategory : undefined,
+        search: searchQuery.trim() ? searchQuery.trim() : undefined,
+        color: selectedColor !== 'all' ? selectedColor : undefined,
+        orientation: orientationFilter !== 'all' ? orientationFilter : undefined,
+        sort: sortBy !== 'popular' ? sortBy : undefined,
+        layout: layoutMode !== 'grid' ? layoutMode : undefined,
+      });
+    }
+  }, [selectedCategory, searchQuery, selectedColor, orientationFilter, sortBy, layoutMode, updateQueryParams]);
+
+  // If queryParams change from outside (e.g. back button / navbar click)
+  useEffect(() => {
+    if (queryParams.category && queryParams.category !== selectedCategory) {
+      setSelectedCategory(queryParams.category);
+    }
+    if (queryParams.search !== undefined && queryParams.search !== searchQuery) {
+      setSearchQuery(queryParams.search);
+    }
+  }, [queryParams]);
 
   // Category counts
   const getCategoryCount = (categoryId) => {
@@ -95,8 +119,8 @@ const GalleryPage = ({
       }
 
       // Search query filter
-      if (!activeSearch.trim()) return true;
-      const q = activeSearch.toLowerCase();
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
       const matchTitle = photo.title?.toLowerCase().includes(q);
       const matchDesc = photo.description?.toLowerCase().includes(q);
       const matchLoc = photo.location?.toLowerCase().includes(q);
@@ -125,9 +149,8 @@ const GalleryPage = ({
     });
 
     return result;
-  }, [photos, selectedCategory, selectedAlbum, selectedColor, orientationFilter, activeSearch, sortBy, likes, collections]);
+  }, [photos, selectedCategory, selectedAlbum, selectedColor, orientationFilter, searchQuery, sortBy, likes, collections]);
 
-  // Paginated visible slice for infinite scroll
   const displayedPhotos = useMemo(() => {
     return processedPhotos.slice(0, visibleCount);
   }, [processedPhotos, visibleCount]);
@@ -140,7 +163,7 @@ const GalleryPage = ({
     setTimeout(() => {
       setVisibleCount((prev) => prev + 8);
       setIsLoadingMore(false);
-    }, 450);
+    }, 400);
   };
 
   const sentinelRef = useInfiniteScroll({
@@ -164,10 +187,10 @@ const GalleryPage = ({
     setSelectedPhotoIds([]);
   };
 
-  // Bulk ZIP Download using JSZip
+  // Bulk ZIP Download
   const handleBulkDownloadZip = async () => {
     if (selectedPhotoIds.length === 0) return;
-    if (onShowToast) onShowToast(`📦 Packing ${selectedPhotoIds.length} photos into ZIP archive...`);
+    showToast(`📦 Packing ${selectedPhotoIds.length} photos into ZIP archive...`);
 
     try {
       const zip = new JSZip();
@@ -183,7 +206,7 @@ const GalleryPage = ({
               zip.file(filename, blob);
             }
           } catch {
-            // If cross-origin fails, skip or pack placeholder
+            // cross-origin fallback
           }
         })
       );
@@ -198,12 +221,12 @@ const GalleryPage = ({
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      if (onShowToast) onShowToast('✓ ZIP Archive successfully downloaded!');
+      showToast('✓ ZIP Archive successfully downloaded!');
       setSelectedPhotoIds([]);
       setIsMultiSelectMode(false);
     } catch (err) {
       console.error('ZIP generation error:', err);
-      if (onShowToast) onShowToast('Failed to create ZIP file. Trying individual downloads.');
+      showToast('Failed to create ZIP file.');
     }
   };
 
@@ -211,17 +234,15 @@ const GalleryPage = ({
   const handleBulkDelete = () => {
     if (selectedPhotoIds.length === 0) return;
     if (window.confirm(`Are you sure you want to delete ${selectedPhotoIds.length} selected photographs?`)) {
-      if (onBatchDeletePhotos) {
-        onBatchDeletePhotos(selectedPhotoIds);
-      }
+      batchDeletePhotos(selectedPhotoIds);
       setSelectedPhotoIds([]);
       setIsMultiSelectMode(false);
     }
   };
 
   const handleResetFilters = () => {
-    onSelectCategory('all');
-    setActiveSearch('');
+    setSelectedCategory('all');
+    setSearchQuery('');
     setSelectedColor('all');
     setOrientationFilter('all');
     setSelectedAlbum('all');
@@ -230,16 +251,22 @@ const GalleryPage = ({
 
   return (
     <div className="min-h-screen py-8 sm:py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-      {/* Page Header */}
+      {/* Active Filter Header */}
       <div className="text-center max-w-3xl mx-auto space-y-3">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full glass-card text-orange-400 text-xs font-bold uppercase tracking-widest shadow-sm">
-          <span>Enterprise Visual Platform</span>
+          <span>Search & Explore Hub</span>
         </div>
         <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight">
-          Visual <span className="text-gradient-orange">Gallery Engine</span>
+          {searchQuery.trim() ? (
+            <>Results for <span className="text-gradient-orange">"{searchQuery}"</span></>
+          ) : selectedCategory !== 'all' ? (
+            <>Exploring <span className="text-gradient-orange capitalize">{selectedCategory}</span></>
+          ) : (
+            <>Explore <span className="text-gradient-orange">Full Archive</span></>
+          )}
         </h1>
         <p className="text-sm sm:text-base text-zinc-400 max-w-xl mx-auto">
-          Explore curated collections, batch organize albums, and filter by chromatic mood or resolution.
+          Showing <span className="text-white font-bold">{processedPhotos.length}</span> high-resolution photographs matching your parameters.
         </p>
 
         {/* Global Action Bar */}
@@ -269,27 +296,26 @@ const GalleryPage = ({
 
       {/* Live Search Input */}
       <SearchBar
-        searchQuery={activeSearch}
-        onSearchChange={setActiveSearch}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
         totalCount={photos.length}
         filteredCount={processedPhotos.length}
       />
 
-      {/* Advanced Filter Toolbar: Album, Colors, Sorting & Layout */}
-      <div className="space-y-4">
-        {/* Category Tabs */}
-        <CategoryTabs
-          selectedCategory={selectedCategory}
-          onSelectCategory={onSelectCategory}
-          getCategoryCount={getCategoryCount}
-        />
+      {/* Category Tabs */}
+      <CategoryTabs
+        selectedCategory={selectedCategory}
+        onSelectCategory={setSelectedCategory}
+        getCategoryCount={getCategoryCount}
+      />
 
-        {/* Secondary Filter Row: Chromatic Color Palette & Layout Switcher */}
+      {/* Advanced Filter Row: Color Swatches, Sort, Orientation, Layout */}
+      <div className="space-y-4">
         <div className="flex flex-col lg:flex-row items-center justify-between gap-4 p-3 rounded-2xl glass-panel-elevated">
-          {/* Color Mood Palette Filters */}
+          {/* Chromatic Color Palette Filters */}
           <div className="flex items-center gap-2 overflow-x-auto w-full lg:w-auto pb-1 lg:pb-0">
             <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 whitespace-nowrap mr-1">
-              🎨 Palette:
+              🎨 Color:
             </span>
             {COLOR_FILTERS.map((filter) => (
               <button
@@ -313,9 +339,8 @@ const GalleryPage = ({
             ))}
           </div>
 
-          {/* Right Controls: Sort Dropdown & Layout Mode */}
+          {/* Right Controls: Sort, Orientation & Layout View */}
           <div className="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-end flex-wrap">
-            {/* Sorting Dropdown */}
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Sort:</span>
               <select
@@ -329,23 +354,20 @@ const GalleryPage = ({
               </select>
             </div>
 
-            {/* Orientation Filter */}
             <select
               value={orientationFilter}
               onChange={(e) => setOrientationFilter(e.target.value)}
               className="px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs font-semibold text-white focus:outline-none focus:border-orange-500 cursor-pointer"
             >
               <option value="all">All Orientations</option>
-              <option value="landscape">Landscape Only</option>
-              <option value="portrait">Portrait Only</option>
+              <option value="landscape">Landscape</option>
+              <option value="portrait">Portrait</option>
             </select>
 
-            {/* Layout View Switcher */}
             <div className="flex items-center p-1 rounded-xl glass-toolbar border-white/10 shadow">
               <button
                 type="button"
                 onClick={() => setLayoutMode('grid')}
-                title="Standard Grid View"
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
                   layoutMode === 'grid' ? 'bg-orange-500 text-black shadow' : 'text-zinc-400 hover:text-white'
                 }`}
@@ -355,7 +377,6 @@ const GalleryPage = ({
               <button
                 type="button"
                 onClick={() => setLayoutMode('masonry')}
-                title="Masonry Dynamic View"
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
                   layoutMode === 'masonry' ? 'bg-orange-500 text-black shadow' : 'text-zinc-400 hover:text-white'
                 }`}
@@ -365,7 +386,6 @@ const GalleryPage = ({
               <button
                 type="button"
                 onClick={() => setLayoutMode('compact')}
-                title="Compact List View"
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
                   layoutMode === 'compact' ? 'bg-orange-500 text-black shadow' : 'text-zinc-400 hover:text-white'
                 }`}
@@ -374,7 +394,6 @@ const GalleryPage = ({
               </button>
             </div>
 
-            {/* Multi-Select Toggle Button */}
             <button
               type="button"
               onClick={() => {
@@ -387,12 +406,12 @@ const GalleryPage = ({
                   : 'glass-card border-zinc-700 hover:bg-zinc-800 text-zinc-300'
               }`}
             >
-              {isMultiSelectMode ? '✓ Multi-Select Active' : 'Select'}
+              {isMultiSelectMode ? '✓ Active' : 'Select'}
             </button>
           </div>
         </div>
 
-        {/* Multi-Select Batch Actions Bar (visible when active) */}
+        {/* Multi-Select Batch Actions Bar */}
         {isMultiSelectMode && (
           <div className="p-3.5 rounded-2xl glass-panel-elevated border-amber-500/40 flex items-center justify-between flex-wrap gap-3 animate-modal-enter">
             <div className="flex items-center gap-3">
@@ -449,20 +468,20 @@ const GalleryPage = ({
         )}
       </div>
 
-      {/* Gallery Grid */}
+      {/* Media Grid */}
       <GalleryGrid
         photos={displayedPhotos}
         likes={likes}
         collections={collections}
-        onToggleLike={onToggleLike}
-        onToggleCollection={onToggleCollection}
-        onDownloadPhoto={onDownloadPhoto}
+        onToggleLike={toggleLike}
+        onToggleCollection={toggleCollection}
+        onDownloadPhoto={downloadPhoto}
         onSelectPhoto={onSelectPhoto}
         onResetFilters={handleResetFilters}
         onEditPhoto={onEditPhoto}
         onDeletePhoto={onDeletePhoto}
         onOpenAddModal={onOpenAddModal}
-        showAddCard={selectedCategory === 'all' && !activeSearch && !isMultiSelectMode}
+        showAddCard={selectedCategory === 'all' && !searchQuery && !isMultiSelectMode}
         layoutMode={layoutMode}
         isMultiSelectMode={isMultiSelectMode}
         selectedPhotoIds={selectedPhotoIds}
@@ -492,13 +511,13 @@ const GalleryPage = ({
         ) : null}
       </div>
 
-      {/* Album Creation & Batch Assignment Modal */}
+      {/* Album Creation & Assignment Modal */}
       <AlbumModal
         isOpen={isAlbumModalOpen}
         onClose={() => setIsAlbumModalOpen(false)}
         albums={albums}
-        onCreateAlbum={onCreateAlbum}
-        onAssignToAlbum={onAssignToAlbum}
+        onCreateAlbum={createAlbum}
+        onAssignToAlbum={assignToAlbum}
         selectedPhotoIds={selectedPhotoIds}
       />
     </div>

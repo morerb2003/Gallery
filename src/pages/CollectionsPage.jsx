@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
 import GalleryGrid from '../components/GalleryGrid';
 import AlbumModal from '../components/AlbumModal';
+import { useGallery } from '../context/GalleryContext';
 
-const CollectionsPage = ({
-  albums = [],
-  photos = [],
-  likes = {},
-  collections = {},
-  onCreateAlbum,
-  onAssignToAlbum,
-  onToggleLike,
-  onToggleCollection,
-  onDownloadPhoto,
-  onSelectPhoto,
-  onNavigate,
-}) => {
+const CollectionsPage = ({ onNavigate }) => {
+  const {
+    albums,
+    photos,
+    likes,
+    collections,
+    createAlbum,
+    assignToAlbum,
+    toggleLike,
+    toggleCollection,
+    downloadPhoto,
+  } = useGallery();
+
   const [selectedAlbumFilter, setSelectedAlbumFilter] = useState(null);
   const [isAlbumModalOpen, setIsAlbumModalOpen] = useState(false);
 
@@ -44,10 +45,10 @@ const CollectionsPage = ({
           photos={albumPhotos}
           likes={likes}
           collections={collections}
-          onToggleLike={onToggleLike}
-          onToggleCollection={onToggleCollection}
-          onDownloadPhoto={onDownloadPhoto}
-          onSelectPhoto={onSelectPhoto}
+          onToggleLike={toggleLike}
+          onToggleCollection={toggleCollection}
+          onDownloadPhoto={downloadPhoto}
+          onSelectPhoto={(p) => onNavigate('photo', p.id)}
           layoutMode="masonry"
         />
       </div>
@@ -140,7 +141,7 @@ const CollectionsPage = ({
         </p>
         <div className="pt-2">
           <button
-            onClick={() => onNavigate('gallery', 'nature')}
+            onClick={() => onNavigate('gallery', { category: 'nature' })}
             className="px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-black font-bold text-xs uppercase tracking-wider transition cursor-pointer"
           >
             Explore Autumn Collection →
@@ -152,8 +153,8 @@ const CollectionsPage = ({
         isOpen={isAlbumModalOpen}
         onClose={() => setIsAlbumModalOpen(false)}
         albums={albums}
-        onCreateAlbum={onCreateAlbum}
-        onAssignToAlbum={onAssignToAlbum}
+        onCreateAlbum={createAlbum}
+        onAssignToAlbum={assignToAlbum}
       />
     </div>
   );
