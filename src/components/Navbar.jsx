@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useGallery } from '../context/GalleryContext';
 
 const Navbar = ({
   activePage,
@@ -6,8 +7,10 @@ const Navbar = ({
   totalPhotos,
   onOpenAddModal,
   onOpenExportModal,
+  onOpenCustomizationModal,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { brandConfig, theme } = useGallery();
 
   const navLinks = [
     { id: 'home', label: 'Discover' },
@@ -31,9 +34,11 @@ const Navbar = ({
           </div>
           <div>
             <span className="text-xl font-extrabold tracking-tight text-white group-hover:text-orange-400 transition-colors">
-              Rohit's <span className="text-gradient-orange">Gallery</span>
+              {brandConfig?.appName || 'LensCraft'}
             </span>
-            <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-medium">Visual Media Platform</p>
+            <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-medium">
+              {brandConfig?.appSubtitle || "Rohit's Visual Gallery"}
+            </p>
           </div>
         </button>
 
@@ -56,6 +61,16 @@ const Navbar = ({
 
         {/* Action Controls & User Profile Avatar */}
         <div className="hidden md:flex items-center gap-2.5">
+          {/* Studio / Customization Trigger */}
+          <button
+            onClick={onOpenCustomizationModal}
+            title="Open LensCraft Studio (Theme, Branding & Layout)"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wider text-zinc-300 hover:text-white glass-card hover:bg-zinc-800 rounded-full border-zinc-700/80 shadow-md transition-all cursor-pointer hover:border-orange-500/50"
+          >
+            <span>✨</span>
+            <span className="hidden xl:inline">Studio</span>
+          </button>
+
           <button
             onClick={onOpenAddModal}
             className="flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider text-black bg-gradient-to-r from-orange-500 to-amber-400 rounded-full hover:from-orange-400 hover:to-amber-300 shadow-lg shadow-orange-500/20 hover:scale-105 transition-all cursor-pointer"
@@ -149,6 +164,15 @@ const Navbar = ({
             className="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-zinc-300 hover:bg-zinc-900 flex items-center justify-between"
           >
             <span>👤 My Profile & Portfolio</span>
+          </button>
+          <button
+            onClick={() => {
+              onOpenCustomizationModal();
+              setMobileMenuOpen(false);
+            }}
+            className="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 flex items-center justify-between"
+          >
+            <span>✨ LensCraft Studio (Theme & Branding)</span>
           </button>
         </div>
       )}

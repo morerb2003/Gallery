@@ -7,6 +7,9 @@ const COLLECTIONS_KEY = 'rohits_gallery_collections_v1';
 const ALBUMS_KEY = 'rohits_gallery_albums_v1';
 const FOLLOWING_KEY = 'rohits_gallery_following_v1';
 const PROFILE_KEY = 'rohits_gallery_profile_v1';
+const THEME_KEY = 'rohits_gallery_theme_v1';
+const BRAND_KEY = 'rohits_gallery_brand_v1';
+const LAYOUT_KEY = 'rohits_gallery_layout_v1';
 
 const DEFAULT_ALBUMS = [
   { id: 'album-1', name: 'Nature & Horizons', description: 'Scenic vistas, lakes, and sunsets.', photoCount: 4 },
@@ -23,6 +26,19 @@ const DEFAULT_PROFILE = {
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
   cover: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=2000&q=80',
   website: 'rohit.gallery',
+};
+
+const DEFAULT_BRAND = {
+  appName: 'LensCraft',
+  appSubtitle: "Rohit's Visual Gallery",
+  photographerName: 'Rohit Sharma',
+  handle: '@rohit_captures',
+  tagline: 'High-performance personal photo gallery capturing the subtle interplay of light, architectural lines, and urban stillness.',
+};
+
+const DEFAULT_LAYOUT = {
+  detailViewMode: 'split-view', // 'split-view' | 'lightbox'
+  feedScrollMode: 'infinite', // 'infinite' | 'paginated'
 };
 
 const GalleryContext = createContext(null);
@@ -92,7 +108,64 @@ export const GalleryProvider = ({ children }) => {
     }
   });
 
+  // Theme state: 'slate-amber' | 'emerald-obsidian' | 'neon-cyberpunk' | 'warm-monochrome'
+  const [theme, setThemeState] = useState(() => {
+    try {
+      return localStorage.getItem(THEME_KEY) || 'slate-amber';
+    } catch {
+      return 'slate-amber';
+    }
+  });
+
+  // Personal Branding state
+  const [brandConfig, setBrandConfig] = useState(() => {
+    try {
+      const saved = localStorage.getItem(BRAND_KEY);
+      return saved ? JSON.parse(saved) : DEFAULT_BRAND;
+    } catch {
+      return DEFAULT_BRAND;
+    }
+  });
+
+  // Layout & Navigation Preferences
+  const [layoutPreferences, setLayoutPreferences] = useState(() => {
+    try {
+      const saved = localStorage.getItem(LAYOUT_KEY);
+      return saved ? JSON.parse(saved) : DEFAULT_LAYOUT;
+    } catch {
+      return DEFAULT_LAYOUT;
+    }
+  });
+
   const [toastMessage, setToastMessage] = useState('');
+
+  // Apply theme to document root
+  useEffect(() => {
+    try {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem(THEME_KEY, theme);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [theme]);
+
+  // Sync Brand Config
+  useEffect(() => {
+    try {
+      localStorage.setItem(BRAND_KEY, JSON.stringify(brandConfig));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [brandConfig]);
+
+  // Sync Layout Preferences
+  useEffect(() => {
+    try {
+      localStorage.setItem(LAYOUT_KEY, JSON.stringify(layoutPreferences));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [layoutPreferences]);
 
   // Auto-sync localStorage
   useEffect(() => {
@@ -272,6 +345,27 @@ export const GalleryProvider = ({ children }) => {
     showToast('🔄 Restored default preset platform!');
   }, [showToast]);
 
+  const setTheme = useCallback((newTheme) => {
+    setThemeState(newTheme);
+    showToast(`🎨 Theme changed to ${newTheme.replace('-', ' ').toUpperCase()}`);
+  }, [showToast]);
+
+  const updateBrandConfig = useCallback((updates) => {
+    setBrandConfig((prev) => {
+      const next = { ...prev, ...updates };
+      showToast(`✨ Brand updated: ${next.appName}`);
+      return next;
+    });
+  }, [showToast]);
+
+  const updateLayoutPreferences = useCallback((updates) => {
+    setLayoutPreferences((prev) => {
+      const next = { ...prev, ...updates };
+      showToast(`⚙️ Layout preferences updated`);
+      return next;
+    });
+  }, [showToast]);
+
   const value = {
     photos,
     likes,
@@ -279,6 +373,12 @@ export const GalleryProvider = ({ children }) => {
     albums,
     followingCreators,
     userProfile,
+    theme,
+    setTheme,
+    brandConfig,
+    updateBrandConfig,
+    layoutPreferences,
+    updateLayoutPreferences,
     toastMessage,
     showToast,
     toggleLike,

@@ -1,17 +1,68 @@
 @import "tailwindcss";
 
-:root {
+:root, [data-theme="slate-amber"] {
   --font-heading: 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
+  --bg-base: #09090b;
+  --bg-card: rgba(24, 24, 27, 0.65);
+  --accent-primary: #f97316;
+  --accent-secondary: #f59e0b;
+  --accent-gradient: linear-gradient(135deg, #fdba74 0%, #f97316 45%, #ea580c 100%);
+  --accent-glow: rgba(249, 115, 22, 0.35);
+  --selection-bg: #f97316;
+  --border-focus: rgba(249, 115, 22, 0.45);
+}
+
+[data-theme="emerald-obsidian"] {
+  --font-heading: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --bg-base: #030706;
+  --bg-card: rgba(5, 22, 16, 0.65);
+  --accent-primary: #10b981;
+  --accent-secondary: #34d399;
+  --accent-gradient: linear-gradient(135deg, #a7f3d0 0%, #10b981 45%, #059669 100%);
+  --accent-glow: rgba(16, 185, 129, 0.35);
+  --selection-bg: #10b981;
+  --border-focus: rgba(16, 185, 129, 0.45);
+}
+
+[data-theme="neon-cyberpunk"] {
+  --font-heading: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --bg-base: #070414;
+  --bg-card: rgba(22, 13, 44, 0.68);
+  --accent-primary: #06b6d4;
+  --accent-secondary: #a855f7;
+  --accent-gradient: linear-gradient(135deg, #67e8f9 0%, #06b6d4 35%, #a855f7 70%, #ec4899 100%);
+  --accent-glow: rgba(6, 182, 212, 0.4);
+  --selection-bg: #06b6d4;
+  --border-focus: rgba(168, 85, 247, 0.5);
+}
+
+[data-theme="warm-monochrome"] {
+  --font-heading: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --bg-base: #141210;
+  --bg-card: rgba(28, 25, 23, 0.72);
+  --accent-primary: #d97706;
+  --accent-secondary: #b45309;
+  --accent-gradient: linear-gradient(135deg, #fde68a 0%, #d97706 45%, #78350f 100%);
+  --accent-glow: rgba(217, 119, 6, 0.32);
+  --selection-bg: #d97706;
+  --border-focus: rgba(217, 119, 6, 0.45);
 }
 
 body {
   font-family: var(--font-body);
-  background-color: #09090b;
+  background-color: var(--bg-base);
   color: #f4f4f5;
   overflow-x: hidden;
-  selection-background-color: #f97316;
-  selection-color: #ffffff;
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+::selection {
+  background-color: var(--selection-bg);
+  color: #ffffff;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -24,20 +75,20 @@ h1, h2, h3, h4, h5, h6 {
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #09090b;
+  background: var(--bg-base);
 }
 ::-webkit-scrollbar-thumb {
   background: #27272a;
   border-radius: 9999px;
-  border: 2px solid #09090b;
+  border: 2px solid var(--bg-base);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #f97316;
+  background: var(--accent-primary);
 }
 
 /* Glassmorphism & Custom Utility Classes */
 .glass-card {
-  background: rgba(24, 24, 27, 0.65);
+  background: var(--bg-card);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -48,9 +99,9 @@ h1, h2, h3, h4, h5, h6 {
 }
 .glass-card-hover:hover {
   background: rgba(30, 30, 35, 0.85);
-  border-color: rgba(249, 115, 22, 0.45);
+  border-color: var(--border-focus);
   transform: translateY(-5px);
-  box-shadow: 0 20px 35px -10px rgba(249, 115, 22, 0.16), 0 0 20px 0 rgba(249, 115, 22, 0.08);
+  box-shadow: 0 20px 35px -10px var(--accent-glow), 0 0 20px 0 var(--accent-glow);
 }
 
 .glass-panel-elevated {
@@ -58,7 +109,7 @@ h1, h2, h3, h4, h5, h6 {
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 35px rgba(249, 115, 22, 0.08);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 35px var(--accent-glow);
 }
 
 .glass-toolbar {
@@ -77,22 +128,22 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .glass-nav {
-  background: rgba(9, 9, 11, 0.82);
+  background: rgba(9, 9, 11, 0.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.glow-orange {
-  box-shadow: 0 0 45px -8px rgba(249, 115, 22, 0.38);
+.glow-orange, .glow-theme {
+  box-shadow: 0 0 45px -8px var(--accent-glow);
 }
 
 .glow-border {
-  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.3), 0 0 25px -4px rgba(249, 115, 22, 0.25);
+  box-shadow: 0 0 0 1px var(--accent-primary), 0 0 25px -4px var(--accent-glow);
 }
 
-.text-gradient-orange {
-  background: linear-gradient(135deg, #fdba74 0%, #f97316 45%, #ea580c 100%);
+.text-gradient-orange, .text-gradient-theme {
+  background: var(--accent-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }

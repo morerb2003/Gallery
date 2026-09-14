@@ -1,10 +1,12 @@
-import React, { Suspense, lazy, useState } from 'react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Lightbox from './components/Lightbox';
 import PhotoFormModal from './components/PhotoFormModal';
 import DeleteConfirmModal from './components/DeleteConfirmModal';
 import ExportModal from './components/ExportModal';
+import CustomizationModal from './components/CustomizationModal';
+import SplitViewPhotoModal from './components/SplitViewPhotoModal';
 import { GalleryProvider, useGallery } from './context/GalleryContext';
 import { useHashRouter } from './hooks/useHashRouter';
 
@@ -36,6 +38,7 @@ const AppContent = () => {
     likes,
     collections,
     toastMessage,
+    layoutPreferences,
     savePhoto,
     deletePhoto,
     resetToDefaults,
@@ -45,11 +48,32 @@ const AppContent = () => {
 
   // Modals state
   const [selectedLightboxPhoto, setSelectedLightboxPhoto] = useState(null);
+  const [selectedSplitPhoto, setSelectedSplitPhoto] = useState(null);
+  const [isCustomizationModalOpen, setIsCustomizationModalOpen] = useState(false);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingPhoto, setEditingPhoto] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [photoToDelete, setPhotoToDelete] = useState(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  // Sync direct URL hash parameter navigation for split photo modal
+  useEffect(() => {
+    if (page === 'photo' && photoId) {
+      const found = photos.find((p) => String(p.id) === String(photoId));
+      if (found) {
+        setSelectedSplitPhoto(found);
+      }
+    }
+  }, [page, photoId, photos]);
+
+  const handleSelectPhoto = (photo) => {
+    if (layoutPreferences?.detailViewMode === 'lightbox') {
+      setSelectedLightboxPhoto(photo);
+    } else {
+      setSelectedSplitPhoto(photo);
+      window.location.hash = `#/photo/${photo.id}`;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col selection:bg-orange-500 selection:text-white">
@@ -70,6 +94,7 @@ const AppContent = () => {
           setIsFormModalOpen(true);
         }}
         onOpenExportModal={() => setIsExportModalOpen(true)}
+        onOpenCustomizationModal={() => setIsCustomizationModalOpen(true)}
       />
 
       {/* Main Multi-Page Route Switching with Suspense Code-Splitting */}
@@ -82,7 +107,7 @@ const AppContent = () => {
               collections={collections}
               onNavigate={navigate}
               onTagClick={(tag) => navigate('gallery', { category: 'all', search: tag })}
-              onSelectPhoto={(p) => navigate('photo', p.id)}
+              onSelectPhoto={handleSelectPhoto}
               onEditPhoto={(p) => {
                 setEditingPhoto(p);
                 setIsFormModalOpen(true);
@@ -103,7 +128,7 @@ const AppContent = () => {
               queryParams={queryParams}
               updateQueryParams={updateQueryParams}
               onNavigate={navigate}
-              onSelectPhoto={(p) => navigate('photo', p.id)}
+              onSelectPhoto={handleSelectPhoto}
               onEditPhoto={(p) => {
                 setEditingPhoto(p);
                 setIsFormModalOpen(true);
@@ -148,6 +173,23 @@ const AppContent = () => {
         </Suspense>
       </main>
 
+      {/* Seamless Split-View Photo Modal (High-Res visuals on left, Sticky EXIF on right) */}
+      <SplitViewPhotoModal
+        isOpen={!!selectedSplitPhoto}
+        photo={selectedSplitPhoto}
+        photosList={photos}
+        onClose={() => {
+          setSelectedSplitPhoto(null);
+          if (window.location.hash.includes('/photo/')) {
+            goBack();
+          }
+        }}
+        onNavigatePhoto={(nextPhoto) => {
+          setSelectedSplitPhoto(nextPhoto);
+          window.location.hash = `#/photo/${nextPhoto.id}`;
+        }}
+      />
+
       {/* Fullscreen Lightbox Modal (optional quick preview) */}
       {selectedLightboxPhoto && (
         <Lightbox
@@ -157,6 +199,12 @@ const AppContent = () => {
           onNavigate={setSelectedLightboxPhoto}
         />
       )}
+
+      {/* LensCraft Customization Studio Modal */}
+      <CustomizationModal
+        isOpen={isCustomizationModalOpen}
+        onClose={() => setIsCustomizationModalOpen(false)}
+      />
 
       {/* Add / Edit Photo Modal */}
       <PhotoFormModal
