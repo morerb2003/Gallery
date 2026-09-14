@@ -4,8 +4,14 @@ import GalleryGrid from '../components/GalleryGrid';
 import { CATEGORIES } from '../data/photos';
 
 const HomePage = ({
-  photos,
+  photos = [],
+  likes = {},
+  collections = {},
+  onToggleLike,
+  onToggleCollection,
+  onDownloadPhoto,
   onNavigate,
+  onTagClick,
   onSelectPhoto,
   onEditPhoto,
   onDeletePhoto,
@@ -15,11 +21,13 @@ const HomePage = ({
 
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
+      {/* Dynamic Search Hero Section */}
       <Hero
         onExplore={() => onNavigate('gallery')}
         featuredPhotos={featuredPhotos}
+        allPhotos={photos}
         onSelectPhoto={onSelectPhoto}
+        onTagClick={onTagClick}
       />
 
       {/* Categories Preview Showcase */}
@@ -58,7 +66,7 @@ const HomePage = ({
                           e.target.src = previewPhoto.fallbackSrc;
                         }
                       }}
-                      className="absolute inset-0 w-full h-full object-cover opacity-25 group-hover:opacity-40 group-hover:scale-110 transition-all duration-500"
+                      className="absolute inset-0 w-full h-full object-cover opacity-25 group-hover:opacity-45 group-hover:scale-110 transition-all duration-500"
                     />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent"></div>
@@ -95,7 +103,7 @@ const HomePage = ({
               Featured Photographs
             </h2>
             <p className="text-sm text-zinc-400 mt-1">
-              A curated selection of standout shots and memorable frames.
+              A curated selection of standout shots, trending captures, and memorable frames.
             </p>
           </div>
 
@@ -103,14 +111,14 @@ const HomePage = ({
             {onOpenAddModal && (
               <button
                 onClick={onOpenAddModal}
-                className="px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-black font-bold text-xs uppercase tracking-wider transition shadow cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-orange-500/20 cursor-pointer active:scale-95"
               >
                 + Add Photo
               </button>
             )}
             <button
               onClick={() => onNavigate('gallery')}
-              className="px-5 py-2.5 rounded-xl glass-card hover:bg-zinc-800 text-white text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer flex items-center gap-2"
+              className="px-5 py-2.5 rounded-xl glass-card hover:bg-zinc-800 text-white text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer flex items-center gap-2 active:scale-95"
             >
               <span>View All ({photos.length})</span>
               <span>→</span>
@@ -120,6 +128,11 @@ const HomePage = ({
 
         <GalleryGrid
           photos={featuredPhotos}
+          likes={likes}
+          collections={collections}
+          onToggleLike={onToggleLike}
+          onToggleCollection={onToggleCollection}
+          onDownloadPhoto={onDownloadPhoto}
           onSelectPhoto={onSelectPhoto}
           onEditPhoto={onEditPhoto}
           onDeletePhoto={onDeletePhoto}
@@ -129,11 +142,11 @@ const HomePage = ({
 
       {/* Artist / Story Banner */}
       <section className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="relative rounded-3xl overflow-hidden glass-card border-orange-500/20 p-8 sm:p-12 lg:p-16">
+        <div className="relative rounded-3xl overflow-hidden glass-panel-elevated border-orange-500/20 p-8 sm:p-12 lg:p-16">
           <div className="absolute -right-20 -bottom-20 w-96 h-96 bg-orange-600/20 rounded-full blur-3xl pointer-events-none"></div>
 
           <div className="max-w-2xl space-y-6 relative z-10">
-            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-orange-500/20 text-orange-400 border border-orange-500/30">
+            <span className="px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-orange-500/20 text-orange-400 border border-orange-500/30">
               Personal Portfolio Management
             </span>
             <h2 className="text-3xl sm:text-4xl font-black text-white">
@@ -145,13 +158,13 @@ const HomePage = ({
             <div className="pt-2 flex flex-wrap items-center gap-3">
               <button
                 onClick={onOpenAddModal}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 transition cursor-pointer"
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 active:scale-95 transition cursor-pointer"
               >
                 Upload New Photo
               </button>
               <button
                 onClick={() => onNavigate('gallery')}
-                className="px-6 py-3 rounded-xl glass-card hover:bg-zinc-800 text-zinc-300 font-bold text-xs uppercase tracking-wider transition cursor-pointer border-zinc-700"
+                className="px-6 py-3 rounded-xl glass-card hover:bg-zinc-800 text-zinc-300 font-bold text-xs uppercase tracking-wider transition cursor-pointer border-zinc-700 active:scale-95"
               >
                 Browse Complete Archive
               </button>
